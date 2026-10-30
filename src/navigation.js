@@ -1,5 +1,6 @@
 import { cleanProductIds } from './comparison.js'
 import { DISCOUNT_LEVELS, parsePrice, SORTS } from './discovery.js'
+import { validHelpTopic } from './help-data.js'
 
 const catalogTypes = new Set(['all', 'category', 'search', 'deals', 'favorites'])
 
@@ -23,7 +24,16 @@ function withCatalogOptions(view, params) {
 // filter URLs that work from a static project subpath.
 export function viewFromSearch(search = '') {
   const params = new URLSearchParams(search)
-  if (params.has('product')) return { type: 'product', id: params.get('product') || '' }
+  if (params.has('product')) {
+    const view = { type: 'product', id: params.get('product') || '' }
+    if (params.get('section') === 'note') view.section = 'note'
+    return view
+  }
+  if (params.has('me')) return { type: 'workspace' }
+  if (params.has('recent')) return { type: 'recent' }
+  if (params.has('notes')) return { type: 'notes' }
+  if (params.has('receipts')) return { type: 'receipts' }
+  if (params.has('help')) return { type: 'help', topic: validHelpTopic(params.get('help')) }
   if (params.has('compare')) return { type: 'compare', ids: cleanProductIds((params.get('compare') || '').split(',')) }
   if (params.has('q')) return withCatalogOptions({ type: 'search', query: params.get('q') || '' }, params)
   if (params.has('category')) return withCatalogOptions({ type: 'category', id: params.get('category'), sub: params.get('sub') || undefined }, params)
@@ -36,7 +46,12 @@ export function viewFromSearch(search = '') {
 
 export function viewUrl(view, pathname = '') {
   const params = new URLSearchParams()
-  if (view.type === 'product') params.set('product', view.id)
+  if (view.type === 'product') { params.set('product', view.id); if (view.section === 'note') params.set('section', 'note') }
+  if (view.type === 'workspace') params.set('me', '1')
+  if (view.type === 'recent') params.set('recent', '1')
+  if (view.type === 'notes') params.set('notes', '1')
+  if (view.type === 'receipts') params.set('receipts', '1')
+  if (view.type === 'help') params.set('help', validHelpTopic(view.topic))
   if (view.type === 'compare') params.set('compare', cleanProductIds(view.ids).join(','))
   if (view.type === 'category') { params.set('category', view.id); if (view.sub) params.set('sub', view.sub) }
   if (view.type === 'categories') params.set('categories', '1')

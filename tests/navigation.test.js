@@ -1,10 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { viewFromSearch, viewUrl, followProductLink } from '../src/navigation.js'
+import { HELP_TOPICS } from '../src/help-data.js'
 
 test('product and existing storefront routes round-trip through shareable URLs', () => {
   const views = [
-    { type: 'home' }, { type: 'product', id: 'pet-toy' },
+    { type: 'home' }, { type: 'product', id: 'pet-toy' }, { type: 'product', id: 'desk-lamp', section: 'note' },
+    { type: 'workspace' }, { type: 'recent' }, { type: 'notes' }, { type: 'receipts' },
+    { type: 'help', topic: 'privacy' },
     { type: 'category', id: 'beauty', sub: 'oral' }, { type: 'categories' },
     { type: 'search', query: 'ساز و موسیقی + دیجیتال' }, { type: 'deals' },
     { type: 'favorites' }, { type: 'all', sort: 'newest' },
@@ -25,6 +28,10 @@ test('untrusted comparison and filter links are bounded and invalid ranges are i
   assert.deepEqual(viewFromSearch('?all=1&discount=25'), { type: 'all', discount: 25 })
   assert.deepEqual(viewFromSearch('?all=1&discount=-25'), { type: 'all' })
   assert.equal(viewUrl({ type: 'compare', ids: ['phone-pro', 'watch'] }, '/Digikaren/'), '/Digikaren/?compare=phone-pro%2Cwatch')
+  assert.deepEqual(viewFromSearch('?help=unknown'), { type: 'help', topic: 'start' })
+  for (const topic of HELP_TOPICS) assert.deepEqual(viewFromSearch(viewUrl({ type: 'help', topic })), { type: 'help', topic })
+  assert.deepEqual(viewFromSearch('?product=phone-pro&section=unknown'), { type: 'product', id: 'phone-pro' })
+  assert.equal(viewUrl({ type: 'notes' }, '/Digikaren/'), '/Digikaren/?notes=1')
 })
 
 test('product links keep normal browser behavior for modified clicks', () => {

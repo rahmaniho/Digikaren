@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { products as seedProducts } from '../src/data.js'
-import { MAX_QUANTITY } from '../src/cart-limits.js'
+import { MAX_ORDER_ITEMS, MAX_QUANTITY } from '../src/cart-limits.js'
 
 export { MAX_QUANTITY }
 
@@ -35,7 +35,7 @@ function validateOrder(body, key) {
   if (typeof key !== 'string' || !/^[a-zA-Z0-9-]{16,80}$/.test(key)) {
     throw new OrderError('INVALID_KEY', 'شناسه درخواست معتبر نیست؛ دوباره تلاش کنید.')
   }
-  if (!body || typeof body !== 'object' || Array.isArray(body) || !Array.isArray(body.items) || body.items.length < 1 || body.items.length > 30) {
+  if (!body || typeof body !== 'object' || Array.isArray(body) || !Array.isArray(body.items) || body.items.length < 1 || body.items.length > MAX_ORDER_ITEMS) {
     throw new OrderError('INVALID_ORDER', 'سبد خرید معتبر نیست.')
   }
   if (!body.customer || typeof body.customer !== 'object' || Array.isArray(body.customer)) {
