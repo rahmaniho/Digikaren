@@ -21,6 +21,7 @@ import { CompareDock, ComparePage, CompareProvider, CompareToggle } from './Comp
 import { cleanNotes, putNote, cleanReceipts, recordReceipt } from './personal-data'
 import { WorkspacePage, RecentPage, NotesPage, ProductNote, ReceiptsPage } from './Personal'
 import { HelpPage } from './Help'
+import AdminApp from './admin/AdminApp'
 
 const STATIC_DEMO = import.meta.env.MODE === 'pages'
 const fa = (number) => new Intl.NumberFormat('fa-IR').format(number)
@@ -214,7 +215,7 @@ function Countdown() {
 }
 
 function Price({ product }) {
-  return <div className="price-box"><div className="price-row"><span className="discount-pill">{fa(product.discount)}٪</span><span className="current-price"><b>{fa(product.price)}</b><small>تومان</small></span></div><div className="old-price">{fa(product.oldPrice)}</div></div>
+  return <div className="price-box"><div className="price-row">{product.discount > 0 && <span className="discount-pill">{fa(product.discount)}٪</span>}<span className="current-price"><b>{fa(product.price)}</b><small>تومان</small></span></div>{product.oldPrice > product.price && <div className="old-price">{fa(product.oldPrice)}</div>}</div>
 }
 
 function ProductCard({ product, isFavorite, onFavorite, onAdd, onOpen, go, deal = false }) {
@@ -246,16 +247,17 @@ function Deals({ favorites, onFavorite, onAdd, onOpen, go }) {
       <div className="deals-timer-label">فرصت باقی‌مانده</div><Countdown />
       <button type="button" className="deals-all" onClick={() => go({ type: 'deals' })}>مشاهده همه <ChevronLeft size={17} /></button>
     </div>
-    <div className="deals-scroll-wrap"><div className="deals-slider" ref={slider} onScroll={(event) => setCanGoBack(event.currentTarget.scrollLeft < -1)}>{products.slice(0, 9).map((product) => <ProductCard key={product.id} product={product} deal isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div>{canGoBack && <button type="button" className="slider-prev" aria-label="کالاهای قبلی" onClick={() => slider.current?.scrollBy({ left: 420, behavior: 'smooth' })}><ChevronRight size={19} /></button>}<button type="button" className="slider-next" aria-label="کالاهای بعدی" onClick={() => slider.current?.scrollBy({ left: -420, behavior: 'smooth' })}><ChevronLeft size={19} /></button></div>
+    <div className="deals-scroll-wrap"><div className="deals-slider" ref={slider} onScroll={(event) => setCanGoBack(event.currentTarget.scrollLeft < -1)}>{products.filter((product) => product.discount > 0).slice(0, 9).map((product) => <ProductCard key={product.id} product={product} deal isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div>{canGoBack && <button type="button" className="slider-prev" aria-label="کالاهای قبلی" onClick={() => slider.current?.scrollBy({ left: 420, behavior: 'smooth' })}><ChevronRight size={19} /></button>}<button type="button" className="slider-next" aria-label="کالاهای بعدی" onClick={() => slider.current?.scrollBy({ left: -420, behavior: 'smooth' })}><ChevronLeft size={19} /></button></div>
   </section>
 }
 
 function SupermarketBanner({ go }) {
   const products = useContext(CatalogContext)
   const groceryProducts = ['honey', 'pasta', 'baby'].map((id) => products.find((product) => product.id === id)).filter(Boolean)
+  const maximumDiscount = Math.max(0, ...groceryProducts.map((product) => Number(product.discount) || 0))
   return <section className="supermarket-banner">
-    <div className="supermarket-title"><span className="supermarket-icon"><ShoppingBasket size={34} strokeWidth={1.6} /></span><div><div className="supermarket-eyebrow">تازه، خوش‌قیمت، دوست‌داشتنی</div><h2>سوپرمارکت <span>دیجی‌کارن</span></h2></div><span className="super-badge">تا ۲۳٪ تخفیف</span></div>
-    <div className="supermarket-items" aria-hidden="true">{groceryProducts.map((product) => <span key={product.id}><img src={assetUrl(product.image)} alt="" /><i>{fa(product.discount)}٪</i></span>)}</div>
+    <div className="supermarket-title"><span className="supermarket-icon"><ShoppingBasket size={34} strokeWidth={1.6} /></span><div><div className="supermarket-eyebrow">تازه، خوش‌قیمت، دوست‌داشتنی</div><h2>سوپرمارکت <span>دیجی‌کارن</span></h2></div>{maximumDiscount > 0 && <span className="super-badge">تا {fa(maximumDiscount)}٪ تخفیف</span>}</div>
+    <div className="supermarket-items" aria-hidden="true">{groceryProducts.map((product) => <span key={product.id}><img src={assetUrl(product.image)} alt="" />{product.discount > 0 && <i>{fa(product.discount)}٪</i>}</span>)}</div>
     <button type="button" onClick={() => go({ type: 'category', id: 'grocery' })}>مشاهده کالاها <ArrowLeft size={17} /></button>
   </section>
 }
@@ -568,7 +570,7 @@ function Footer({ go }) {
   return <footer className="footer"><div className="container-wide">
     <div className="footer-top"><div><Logo onClick={() => go({ type: 'home' })} /><p>کنار شماییم برای یک خرید خوب و دوست‌داشتنی.</p></div><button type="button" className="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>بازگشت به بالا <ArrowUp size={17} /></button></div>
     <div className="assurances">{assurances.map(({ Icon, title }) => <div key={title}><Icon size={29} strokeWidth={1.4} /><span>{title}</span></div>)}</div>
-    <div className="footer-columns">{groups.map((group) => <div key={group.title}><h3>{group.title}</h3>{group.links.map(([label, topic]) => <button type="button" key={topic} onClick={() => go({ type: 'help', topic })}>{label}</button>)}</div>)}<div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3><p>خبرنامه در نسخه نمایشی فعال نیست.</p><button type="button" onClick={() => go({ type: 'workspace' })}>مشاهده فضای من <ArrowLeft size={15} /></button></div></div>
+    <div className="footer-columns">{groups.map((group) => <div key={group.title}><h3>{group.title}</h3>{group.links.map(([label, topic]) => <button type="button" key={topic} onClick={() => go({ type: 'help', topic })}>{label}</button>)}</div>)}<div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3><p>خبرنامه در نسخه نمایشی فعال نیست.</p><button type="button" onClick={() => go({ type: 'workspace' })}>مشاهده فضای من <ArrowLeft size={15} /></button><button type="button" onClick={() => go({ type: 'admin', section: 'overview' })}>پنل مدیریت <ArrowLeft size={15} /></button></div></div>
     <div className="footer-bottom"><span>© دیجی‌کارن؛ خرید خوب، حال خوب.</span><span>این فروشگاه و اطلاعات کالاها نمونه نمایشی هستند.</span></div>
   </div></footer>
 }
@@ -824,6 +826,7 @@ export default function App() {
   const [installPrompt, setInstallPrompt] = useState(null)
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches || Boolean(navigator.standalone))
   const toastTimer = useRef(null)
+  const previousViewType = useRef(view.type)
 
   useEffect(() => {
     const beforeInstall = (event) => { event.preventDefault(); setInstallPrompt(event) }
@@ -839,7 +842,7 @@ export default function App() {
       const response = await fetch('/api/catalog', { cache: 'no-store' })
       if (!response.ok) throw new Error('catalog unavailable')
       const result = await response.json()
-      if (!Array.isArray(result.products) || !result.products.length) throw new Error('invalid catalog')
+      if (!Array.isArray(result.products)) throw new Error('invalid catalog')
       setCatalogProducts(result.products)
       setCatalogStatus('ready')
       return true
@@ -850,8 +853,12 @@ export default function App() {
   }, [])
   useEffect(() => { refreshCatalog() }, [refreshCatalog])
   useEffect(() => {
+    if (previousViewType.current === 'admin' && view.type !== 'admin') refreshCatalog()
+    previousViewType.current = view.type
+  }, [view.type, refreshCatalog])
+  useEffect(() => {
     const product = view.type === 'product' ? catalogProducts.find((item) => item.id === view.id) : null
-    const titles = { compare: 'مقایسه کالاها', workspace: 'فضای خرید من', recent: 'بازدیدهای اخیر', notes: 'یادداشت‌های من', receipts: 'رسیدهای آزمایشی', help: 'مرکز راهنما' }
+    const titles = { compare: 'مقایسه کالاها', workspace: 'فضای خرید من', recent: 'بازدیدهای اخیر', notes: 'یادداشت‌های من', receipts: 'رسیدهای آزمایشی', help: 'مرکز راهنما', admin: 'پنل مدیریت' }
     document.title = view.type === 'product' ? `${product?.title || (catalogStatus === 'loading' ? 'کالا' : 'کالا پیدا نشد')} | دیجی‌کارن` : titles[view.type] ? `${titles[view.type]} | دیجی‌کارن` : 'دیجی‌کارن | خرید خوب، حال خوب'
   }, [view.type, view.id, catalogProducts, catalogStatus])
   useEffect(() => {
@@ -1005,6 +1012,8 @@ export default function App() {
       notify('برای نصب، از گزینه افزودن به صفحه اصلی در منوی مرورگر استفاده کنید.')
     }
   }
+  if (view.type === 'admin') return <AdminApp section={view.section} go={go} staticDemo={STATIC_DEMO} />
+
   const common = { favorites, onFavorite, onAdd, onOpen: (product) => { rememberProduct(product.id); openModal('product', product) }, go, recent, clearRecent: () => requestClear('recent') }
   const cartCount = Object.values(cart).reduce((sum, count) => sum + (Number(count) || 0), 0)
   let page

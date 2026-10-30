@@ -1,6 +1,7 @@
 import { cleanProductIds } from './comparison.js'
 import { DISCOUNT_LEVELS, parsePrice, SORTS } from './discovery.js'
 import { validHelpTopic } from './help-data.js'
+import { validAdminSection } from './admin/shared.js'
 
 const catalogTypes = new Set(['all', 'category', 'search', 'deals', 'favorites'])
 
@@ -24,6 +25,7 @@ function withCatalogOptions(view, params) {
 // filter URLs that work from a static project subpath.
 export function viewFromSearch(search = '') {
   const params = new URLSearchParams(search)
+  if (params.has('admin')) return { type: 'admin', section: validAdminSection(params.get('admin')) }
   if (params.has('product')) {
     const view = { type: 'product', id: params.get('product') || '' }
     if (params.get('section') === 'note') view.section = 'note'
@@ -46,6 +48,7 @@ export function viewFromSearch(search = '') {
 
 export function viewUrl(view, pathname = '') {
   const params = new URLSearchParams()
+  if (view.type === 'admin') params.set('admin', validAdminSection(view.section))
   if (view.type === 'product') { params.set('product', view.id); if (view.section === 'note') params.set('section', 'note') }
   if (view.type === 'workspace') params.set('me', '1')
   if (view.type === 'recent') params.set('recent', '1')
