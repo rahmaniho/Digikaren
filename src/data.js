@@ -1,5 +1,6 @@
 import { extraProducts } from './extra-products.js'
 import { moreProducts } from './more-products.js'
+import { newProducts } from './new-products.js'
 
 const image = (name) => `/images/${name}.jpg`
 
@@ -24,6 +25,11 @@ export const categories = [
   { id: 'garden', label: 'گل، گیاه و باغبانی', image: image('product-garden-set'), color: '#eaf5ec', sub: sub([['plants', 'گیاه آپارتمانی'], ['pots', 'گلدان و کاشت'], ['tools', 'ابزار باغبانی'], ['watering', 'آبیاری']]) },
   { id: 'music', label: 'ساز و تجهیزات موسیقی', image: image('product-music-set'), color: '#f5edff', sub: sub([['strings', 'سازهای زهی'], ['keyboards', 'سازهای کلاویه‌ای'], ['percussion', 'سازهای کوبه‌ای'], ['accessories', 'لوازم موسیقی']]) },
   { id: 'handmade', label: 'هنر و صنایع دستی', image: image('product-handmade-set'), color: '#fff1ea', sub: sub([['ceramics', 'سفال و سرامیک'], ['textiles', 'بافته‌های تزئینی'], ['wood', 'محصولات چوبی'], ['gifts', 'هدیه هنری']]) },
+  { id: 'bed-bath', label: 'کالای خواب و حمام', image: image('product-bedroom-set'), color: '#edf6ff', sub: sub([['bedding', 'لحاف و روتختی'], ['pillows', 'بالش و لوازم خواب'], ['towels', 'حوله حمام'], ['organizers', 'سبد و نظم‌دهنده'], ['accessories', 'لوازم کنار تخت']]) },
+  { id: 'lighting', label: 'روشنایی و نورپردازی', image: image('product-lighting-set'), color: '#fff7e8', sub: sub([['desk', 'چراغ مطالعه'], ['bulbs', 'لامپ'], ['night', 'چراغ خواب'], ['decorative', 'نور تزئینی']]) },
+  { id: 'office', label: 'لوازم اداری و میز کار', image: image('product-office-set'), color: '#edf3fc', sub: sub([['stationery', 'دفتر و یادداشت'], ['filing', 'پوشه و بایگانی'], ['organization', 'نظم‌دهنده میز'], ['tools', 'ابزار اداری'], ['workspace', 'تجهیزات میز کار']]) },
+  { id: 'party', label: 'جشن و مهمانی', image: image('product-party-set'), color: '#fff0f1', sub: sub([['balloons', 'بادکنک'], ['tableware', 'ظروف مهمانی'], ['decor', 'تزئینات جشن'], ['giftwrap', 'بسته‌بندی هدیه']]) },
+  { id: 'cleaning', label: 'نظافت و شست‌وشو', image: image('product-cleaning-set'), color: '#ecf7f7', sub: sub([['cleaners', 'شوینده و پاک‌کننده'], ['cloths', 'دستمال نظافت'], ['tools', 'ابزار شست‌وشو'], ['gloves', 'دستکش نظافت']]) },
 ]
 
 // Product data, prices and inventory are illustrative and do not represent a real store.
@@ -94,7 +100,7 @@ const originalProducts = [
     features: ['مناسب مراقبت از کودک', 'همراه با دستمال مرطوب', 'بسته‌بندی بهداشتی']
   },
   {
-    id: 'notebook', title: 'دفتر یادداشت جلد سخت مدل روزانه', image: '/images/product-notebook.svg', categories: ['books'],
+    id: 'notebook', title: 'دفتر یادداشت جلد سخت مدل روزانه', image: '/images/product-notebook.svg', categories: ['books', 'office'],
     price: 189000, oldPrice: 249000, discount: 24, rating: '۴.۵', reviews: 45, sold: 39, badge: 'پیشنهاد کارن',
     features: ['جلد سخت و بادوام', 'مناسب یادداشت‌های روزانه', 'طراحی ساده و کاربردی']
   },
@@ -120,7 +126,7 @@ const originalSubcategories = {
   fryer: { home: ['appliances'] },
   pasta: { grocery: ['foods'] },
   baby: { kids: ['hygiene'], grocery: ['cleaning'] },
-  notebook: { books: ['notebooks'] },
+  notebook: { books: ['notebooks'], office: ['stationery'] },
   drill: { vehicle: ['power'] },
 }
 
@@ -128,6 +134,7 @@ export const products = [
   ...originalProducts.map((product) => ({ ...product, subcategories: originalSubcategories[product.id] })),
   ...extraProducts,
   ...moreProducts,
+  ...newProducts,
 ]
 
 export const slides = [

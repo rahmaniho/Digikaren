@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft, ArrowRight, ArrowUp, BadgePercent, Baby, BookOpen,
+  ArrowLeft, ArrowRight, ArrowUp, BadgePercent, Baby, BedDouble, BookOpen, BriefcaseBusiness,
   Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CookingPot,
-  CreditCard, Dumbbell, Eye, Flame, Flower2, Gamepad2, Gift, Grid2X2, Headphones, Heart, HeartPulse,
-  Home, Laptop, MapPin, Minus, Monitor, Music2, Palette, PawPrint, Plus, RotateCcw, Search, ShieldCheck, Shirt,
+  CreditCard, Download, Dumbbell, Eye, Flame, Flower2, Gamepad2, Gift, Grid2X2, Headphones, Heart, HeartPulse, Info,
+  Home, LampDesk, Laptop, MapPin, Minus, Monitor, Music2, Palette, PartyPopper, PawPrint, Plus, Search, ShieldCheck, Shirt, SprayCan,
   ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Smartphone,
   Share2, Sparkles, Star, Store, Trash2, Truck, UserRound, Watch, X, Zap, ZoomIn,
 } from 'lucide-react'
@@ -12,7 +12,9 @@ import { clearCheckoutKey, keyForCheckout } from './checkout'
 import { followProductLink, viewFromSearch, viewUrl } from './navigation'
 import { relatedProducts } from './recommendations'
 import { productQuantityLimit, quantityAvailableToAdd } from './cart-limits'
+import { assetUrl } from './assets'
 
+const STATIC_DEMO = import.meta.env.MODE === 'pages'
 const fa = (number) => new Intl.NumberFormat('fa-IR').format(number)
 const CatalogContext = createContext(sampleProducts)
 const iconMap = {
@@ -20,8 +22,9 @@ const iconMap = {
   grocery: ShoppingBasket, watch: Watch, gaming: Gamepad2, sports: Dumbbell,
   kids: Baby, books: BookOpen, vehicle: Store, gifts: Gift, computer: Monitor,
   pets: PawPrint, garden: Flower2, music: Music2, handmade: Palette,
+  'bed-bath': BedDouble, lighting: LampDesk, office: BriefcaseBusiness, party: PartyPopper, cleaning: SprayCan,
 }
-const newCategoryIds = ['computer', 'pets', 'garden', 'music', 'handmade']
+const newCategoryIds = ['bed-bath', 'lighting', 'office', 'party', 'cleaning', 'computer', 'pets', 'garden', 'music', 'handmade']
 
 function normalize(value = '') {
   const digits = '۰۱۲۳۴۵۶۷۸۹'
@@ -61,7 +64,7 @@ function useStoredState(key, initialValue) {
 function Logo({ onClick }) {
   return (
     <button type="button" className="logo" onClick={onClick} aria-label="دیجی‌کارن، صفحه اصلی">
-      <img src="/digikaren-logo.png" alt="" width="200" height="52" />
+      <img src={assetUrl('/digikaren-logo.png')} alt="" width="200" height="52" />
     </button>
   )
 }
@@ -109,7 +112,7 @@ function Header({ view, go, cartCount, favorites, city, openModal, onSupport }) 
           {searchValue.trim() ? <>
             <p className="popover-label">نتایج پیشنهادی</p>
             {matches.length ? matches.map((product) => <a className="suggestion" href={viewUrl({ type: 'product', id: product.id })} key={product.id} onClick={(event) => followProductLink(event, product.id, (next) => { setSearchOpen(false); go(next) })}>
-              <img src={product.image} alt="" /><span>{product.title}</span><ChevronLeft size={16} />
+              <img src={assetUrl(product.image)} alt="" /><span>{product.title}</span><ChevronLeft size={16} />
             </a>) : <p className="suggestion-empty">کالایی پیدا نشد؛ عبارت دیگری را امتحان کنید.</p>}
             <button type="button" className="search-all" onClick={() => searchFor(searchValue)}>مشاهده همه نتایج برای «{searchValue}» <ArrowLeft size={15} /></button>
           </> : <>
@@ -150,6 +153,15 @@ function Header({ view, go, cartCount, favorites, city, openModal, onSupport }) 
   </header>
 }
 
+function AppNotice({ openInstall }) {
+  return <div className="app-notice" role="note">
+    <div className="container-wide app-notice-inner">
+      <div><Info size={17} aria-hidden="true" /><span>{STATIC_DEMO ? 'نسخه نمایشی گیت‌هاب پیجز؛ قیمت‌ها نمونه‌اند و ثبت سفارش، پرداخت و ارسال فعال نیست.' : 'وب‌اپ نمایشی دیجی‌کارن؛ پرداخت و ارسال واقعی فعال نیست.'}</span></div>
+      <button type="button" onClick={openInstall}><Download size={16} /> نصب وب‌اپ</button>
+    </div>
+  </div>
+}
+
 function Hero({ go }) {
   const [slideIndex, setSlideIndex] = useState(0)
   const slide = slides[slideIndex]
@@ -157,13 +169,13 @@ function Hero({ go }) {
   const previous = () => setSlideIndex((current) => (current - 1 + slides.length) % slides.length)
   const visitSlide = () => go(slide.target === 'all' ? { type: 'all' } : slide.target === 'deals' ? { type: 'deals' } : { type: 'category', id: slide.target })
   const benefits = [
-    { Icon: Truck, title: 'ارسال سریع', description: 'به سراسر کشور' },
-    { Icon: ShieldCheck, title: 'ضمانت اصالت کالا', description: 'خرید با اطمینان' },
-    { Icon: CreditCard, title: 'پرداخت آسان', description: 'تجربه‌ای راحت' },
-    { Icon: Headphones, title: 'پشتیبانی همراه', description: 'همیشه در کنار شما' },
+    { Icon: ShoppingBasket, title: 'کالاهای نمونه', description: 'برای آشنایی با فروشگاه' },
+    { Icon: ShieldCheck, title: STATIC_DEMO ? 'قیمت نمایشی' : 'سفارش آزمایشی', description: 'بدون پرداخت واقعی' },
+    { Icon: Smartphone, title: 'وب‌اپ قابل نصب', description: 'همراه همیشگی' },
+    { Icon: Heart, title: 'انتخاب‌های من', description: 'ذخیره در مرورگر' },
   ]
   return <section className={`hero hero-${slide.theme}`} aria-label="پیشنهادهای ویژه دیجی‌کارن">
-    <div className="hero-image" style={{ backgroundImage: slide.theme === 'reference' ? `url(${slide.image})` : `linear-gradient(to right, transparent 48%, var(--hero-bg) 97%), url(${slide.image})` }} />
+    <div className="hero-image" style={{ backgroundImage: slide.theme === 'reference' ? `url(${assetUrl(slide.image)})` : `linear-gradient(to right, transparent 48%, var(--hero-bg) 97%), url(${assetUrl(slide.image)})` }} />
     <div className="hero-copy" key={slideIndex}>
       <span className="hero-eyebrow">{slide.theme !== 'reference' && <Sparkles size={15} />} {slide.eyebrow}</span>
       <h1>{slide.title}<br /><span>{slide.title2}</span></h1>
@@ -209,13 +221,13 @@ function ProductCard({ product, isFavorite, onFavorite, onAdd, onOpen, go, deal 
   const soldOut = product.stock === 0
   return <article className={`product-card ${deal ? 'deal-product' : ''}`} aria-label={`مشاهده ${product.title}`}>
     <a className="product-card-link" href={viewUrl({ type: 'product', id: product.id })} aria-label={`صفحه کالا: ${product.title}`} onClick={(event) => followProductLink(event, product.id, go)} />
-    <div className="product-card-top"><span><Zap size={13} fill="currentColor" /> {product.badge}</span><div className="product-card-actions">
+    <div className="product-card-top"><span><Zap size={13} fill="currentColor" /> {product.badge === 'ارسال سریع' ? 'کالای نمونه' : product.badge}</span><div className="product-card-actions">
       <button type="button" className="quick-view-button" aria-label={`نمایش سریع: ${product.title}`} title="نمایش سریع" onClick={() => onOpen(product)}><Eye size={17} /></button>
       <button type="button" className={`favorite-button ${isFavorite ? 'is-favorite' : ''}`} aria-label={`${isFavorite ? 'حذف از' : 'افزودن به'} علاقه‌مندی‌ها: ${product.title}`} onClick={() => onFavorite(product.id)}><Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} /></button>
     </div></div>
-    <div className="product-image"><img src={product.image} alt={product.title} loading="lazy" /><button type="button" className="add-mini" disabled={soldOut} aria-label={`${soldOut ? 'ناموجود' : 'افزودن به سبد خرید'}: ${product.title}`} onClick={() => onAdd(product.id)}><Plus size={17} /></button></div>
+    <div className="product-image"><img src={assetUrl(product.image)} alt={product.title} loading="lazy" /><button type="button" className="add-mini" disabled={soldOut} aria-label={`${soldOut ? 'ناموجود' : 'افزودن به سبد خرید'}: ${product.title}`} onClick={() => onAdd(product.id)}><Plus size={17} /></button></div>
     <h3>{product.title}</h3>
-    <div className="product-meta"><span>{soldOut ? 'ناموجود' : <><Truck size={13} /> ارسال دیجی‌کارن</>}</span><span className="rating">{product.rating}<Star size={13} fill="currentColor" /></span></div>
+    <div className="product-meta"><span>{soldOut ? 'ناموجود' : <><Truck size={13} /> کالای نمونه</>}</span><span className="rating">{product.rating}<Star size={13} fill="currentColor" /></span></div>
     <Price product={product} />
     {deal && <div className="stock-row"><div className="stock-line"><span style={{ width: `${product.sold}%` }} /></div><small><b>{fa(product.sold)}٪</b> فروش رفته</small></div>}
   </article>
@@ -242,7 +254,7 @@ function SupermarketBanner({ go }) {
   const groceryProducts = ['honey', 'pasta', 'baby'].map((id) => products.find((product) => product.id === id)).filter(Boolean)
   return <section className="supermarket-banner">
     <div className="supermarket-title"><span className="supermarket-icon"><ShoppingBasket size={34} strokeWidth={1.6} /></span><div><div className="supermarket-eyebrow">تازه، خوش‌قیمت، دوست‌داشتنی</div><h2>سوپرمارکت <span>دیجی‌کارن</span></h2></div><span className="super-badge">تا ۲۳٪ تخفیف</span></div>
-    <div className="supermarket-items" aria-hidden="true">{groceryProducts.map((product) => <span key={product.id}><img src={product.image} alt="" /><i>{fa(product.discount)}٪</i></span>)}</div>
+    <div className="supermarket-items" aria-hidden="true">{groceryProducts.map((product) => <span key={product.id}><img src={assetUrl(product.image)} alt="" /><i>{fa(product.discount)}٪</i></span>)}</div>
     <button type="button" onClick={() => go({ type: 'category', id: 'grocery' })}>مشاهده کالاها <ArrowLeft size={17} /></button>
   </section>
 }
@@ -250,7 +262,7 @@ function SupermarketBanner({ go }) {
 function CategorySection({ go }) {
   return <section className="category-section section-space" id="categories">
     <div className="section-heading centered"><div><span className="heading-eyebrow">یه دنیا انتخاب، یه جای مطمئن</span><h2>خرید بر اساس دسته‌بندی</h2><p>هر چیزی که دنبالش هستی، اینجاست</p></div></div>
-    <div className="category-grid">{categories.slice(0, 8).map((category) => <button type="button" className="category-tile" key={category.id} onClick={() => go({ type: 'category', id: category.id })}><span className="category-picture" style={{ background: category.color }}><img src={category.image} alt="" loading="lazy" /></span><strong>{category.label}</strong><span className="category-more">مشاهده کالاها <ChevronLeft size={13} /></span></button>)}</div>
+    <div className="category-grid">{categories.slice(0, 8).map((category) => <button type="button" className="category-tile" key={category.id} onClick={() => go({ type: 'category', id: category.id })}><span className="category-picture" style={{ background: category.color }}><img src={assetUrl(category.image)} alt="" loading="lazy" /></span><strong>{category.label}</strong><span className="category-more">مشاهده کالاها <ChevronLeft size={13} /></span></button>)}</div>
     <div className="category-new-bar" aria-label="دسته‌های تازه فروشگاه">
       <div className="category-new-title"><span>تازه اضافه شده</span><strong>دسته‌های جدید رو کشف کن</strong></div>
       <div className="category-new-links">{newCategoryIds.map((id) => {
@@ -291,7 +303,7 @@ function Discover({ go }) {
     { title: 'برای استایل هر روزت', sub: 'خودت باش، خوش‌استایل باش', ids: ['sneaker', 'watch', 'headphone', 'earbuds'], category: 'fashion' },
     { title: 'برای حال خوب خودت', sub: 'لحظه‌ای برای مراقبت از خود', ids: ['cream', 'honey', 'watch', 'sneaker'], category: 'beauty' },
   ]
-  return <section className="discover section-space"><div className="section-heading inline"><div><span className="heading-eyebrow">پیشنهادهای ما برای شما</span><h2>کشف کن و دوست داشته باش</h2></div></div><div className="discover-grid">{groups.map((group) => <div className="discover-card" key={group.title}><h3>{group.title}</h3><p>{group.sub}</p><div className="discover-images">{group.ids.map((id) => { const product = products.find((item) => item.id === id); return product && <a key={id} href={viewUrl({ type: 'product', id })} aria-label={`صفحه کالا: ${product.title}`} onClick={(event) => followProductLink(event, id, go)}><img src={product.image} alt="" loading="lazy" /></a> })}</div><button type="button" className="section-link" onClick={() => go({ type: 'category', id: group.category })}>مشاهده <ChevronLeft size={15} /></button></div>)}</div></section>
+  return <section className="discover section-space"><div className="section-heading inline"><div><span className="heading-eyebrow">پیشنهادهای ما برای شما</span><h2>کشف کن و دوست داشته باش</h2></div></div><div className="discover-grid">{groups.map((group) => <div className="discover-card" key={group.title}><h3>{group.title}</h3><p>{group.sub}</p><div className="discover-images">{group.ids.map((id) => { const product = products.find((item) => item.id === id); return product && <a key={id} href={viewUrl({ type: 'product', id })} aria-label={`صفحه کالا: ${product.title}`} onClick={(event) => followProductLink(event, id, go)}><img src={assetUrl(product.image)} alt="" loading="lazy" /></a> })}</div><button type="button" className="section-link" onClick={() => go({ type: 'category', id: group.category })}>مشاهده <ChevronLeft size={15} /></button></div>)}</div></section>
 }
 
 function CategoryDirectory({ go }) {
@@ -318,7 +330,7 @@ function CategoryDirectory({ go }) {
           <button type="button" className="directory-card-head" onClick={() => go({ type: 'category', id: category.id })}>
             <span className="directory-icon" style={{ background: category.color }}><Icon size={22} /></span>
             <span className="directory-card-title"><strong>{category.label}</strong><small>{fa(count)} کالای نمونه</small></span>
-            <span className="directory-thumb"><img src={category.image} alt="" loading="lazy" /></span>
+            <span className="directory-thumb"><img src={assetUrl(category.image)} alt="" loading="lazy" /></span>
           </button>
           <div className="directory-subcategories">{category.sub.map((item) => {
             const subCount = products.filter((product) => product.subcategories?.[category.id]?.includes(item.id)).length
@@ -333,7 +345,7 @@ function CategoryDirectory({ go }) {
 
 function NewArrivals({ favorites, onFavorite, onAdd, onOpen, go }) {
   const products = useContext(CatalogContext)
-  const ids = ['pet-care-kit', 'garden-care-kit', 'workspace-kit', 'music-kit', 'craft-home-set', 'cookware-kit']
+  const ids = ['bed-bath-kit', 'lighting-kit', 'office-kit', 'party-kit', 'cleaning-kit', 'pet-care-kit']
   const selected = ids.map((id) => products.find((product) => product.id === id)).filter(Boolean)
   return <section className="best-section new-section section-space">
     <div className="section-heading inline"><div><span className="heading-eyebrow">انتخاب‌های تازه، حال خوب تازه</span><h2><Sparkles size={23} /> تازه‌های فروشگاه</h2></div><button type="button" className="section-link" onClick={() => go({ type: 'all', sort: 'newest' })}>مشاهده همه <ChevronLeft size={17} /></button></div>
@@ -417,8 +429,8 @@ function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen }) {
       <button type="button" className={!view.sub ? 'active' : ''} aria-pressed={!view.sub} onClick={() => go({ type: 'category', id: category.id })}>همه {category.label}<small>{fa(products.filter((product) => product.categories.includes(category.id)).length)}</small></button>
       {category.sub.map((item) => <button type="button" key={item.id} className={view.sub === item.id ? 'active' : ''} aria-pressed={view.sub === item.id} onClick={() => go({ type: 'category', id: category.id, sub: item.id })}>{item.label}<small>{fa(products.filter((product) => product.subcategories?.[category.id]?.includes(item.id)).length)}</small></button>)}
     </nav>}
-    <div className="catalog-layout"><aside className="filter-panel"><div className="filter-heading"><SlidersHorizontal size={19} /><strong>فیلترها</strong><button type="button" onClick={() => { setDiscountOnly(false); setAvailableOnly(false) }}>حذف فیلترها</button></div><div className="filter-group"><h3>دسته‌بندی کالاها</h3><div className="filter-category-list" ref={categoryFilterRef}>{categories.map((item) => <button type="button" className={view.type === 'category' && view.id === item.id ? 'active' : ''} key={item.id} onClick={() => go({ type: 'category', id: item.id })}>{item.label}<ChevronLeft size={14} /></button>)}</div></div><label className="filter-toggle"><span>فقط کالاهای تخفیف‌دار</span><input type="checkbox" checked={discountOnly} onChange={(event) => setDiscountOnly(event.target.checked)} /><i /></label><label className="filter-toggle available-toggle"><span>فقط کالاهای موجود</span><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /><i /></label><div className="filter-note"><ShieldCheck size={21} /><span>خریدی مطمئن با<br /><b>دیجی‌کارن</b></span></div></aside>
-      <div className="catalog-content"><div className="mobile-catalog-filters"><label><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /> فقط کالاهای موجود</label></div><div className="sort-bar"><span><SlidersHorizontal size={17} /> مرتب‌سازی:</span>{[['suggested', 'پیشنهادی'], ['newest', 'جدیدترین'], ['popular', 'پرفروش‌ترین'], ['cheapest', 'ارزان‌ترین'], ['expensive', 'گران‌ترین']].map(([id, label]) => <button type="button" key={id} className={sort === id ? 'active' : ''} aria-pressed={sort === id} onClick={() => setSort(id)}>{label}</button>)}<small>{fa(result.length)} کالا</small></div>
+    <div className="catalog-layout"><aside className="filter-panel"><div className="filter-heading"><SlidersHorizontal size={19} /><strong>فیلترها</strong><button type="button" onClick={() => { setDiscountOnly(false); setAvailableOnly(false) }}>حذف فیلترها</button></div><div className="filter-group"><h3>دسته‌بندی کالاها</h3><div className="filter-category-list" ref={categoryFilterRef}>{categories.map((item) => <button type="button" className={view.type === 'category' && view.id === item.id ? 'active' : ''} key={item.id} onClick={() => go({ type: 'category', id: item.id })}>{item.label}<ChevronLeft size={14} /></button>)}</div></div><label className="filter-toggle"><span>فقط کالاهای تخفیف‌دار</span><input type="checkbox" checked={discountOnly} onChange={(event) => setDiscountOnly(event.target.checked)} /><i /></label>{!STATIC_DEMO && <label className="filter-toggle available-toggle"><span>فقط کالاهای موجود</span><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /><i /></label>}<div className="filter-note"><ShieldCheck size={21} /><span>خریدی مطمئن با<br /><b>دیجی‌کارن</b></span></div></aside>
+      <div className="catalog-content">{!STATIC_DEMO && <div className="mobile-catalog-filters"><label><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /> فقط کالاهای موجود</label></div>}<div className="sort-bar"><span><SlidersHorizontal size={17} /> مرتب‌سازی:</span>{[['suggested', 'پیشنهادی'], ['newest', 'جدیدترین'], ['popular', 'پرفروش‌ترین'], ['cheapest', 'ارزان‌ترین'], ['expensive', 'گران‌ترین']].map(([id, label]) => <button type="button" key={id} className={sort === id ? 'active' : ''} aria-pressed={sort === id} onClick={() => setSort(id)}>{label}</button>)}<small>{fa(result.length)} کالا</small></div>
         {result.length ? <div className="catalog-grid">{result.map((product) => <ProductCard key={product.id} product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div> : <div className="empty-results"><span><Search size={35} /></span><h2>{invalidCategory ? 'این دسته‌بندی وجود ندارد.' : view.type === 'favorites' ? 'هنوز چیزی به علاقه‌مندی‌هات اضافه نکردی!' : 'چیزی پیدا نکردیم!'}</h2><p>{view.type === 'favorites' ? 'با زدن قلب کنار هر کالا، می‌تونی بعداً راحت پیداش کنی.' : 'عبارت دیگری را جستجو کن یا از میان دسته‌بندی‌ها انتخاب کن.'}</p><button type="button" className="primary-button" onClick={() => go({ type: 'all' })}>مشاهده همه کالاها <ArrowLeft size={17} /></button></div>}
       </div>
     </div>
@@ -445,7 +457,7 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
   const primarySubcategory = primaryCategory?.sub.find((item) => product.subcategories?.[primaryCategory.id]?.includes(item.id))
   const related = relatedProducts(product, products)
   const shareUrl = new URL(viewUrl({ type: 'product', id: product.id }), window.location.href).href
-  const stockText = catalogStatus === 'offline' ? 'اتصال به موجودی آزمایشی برقرار نیست' : product.stock == null ? 'در حال دریافت موجودی آزمایشی' : product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'
+  const stockText = catalogStatus === 'static' ? 'موجودی واقعی در نسخه نمایشی مشخص نیست' : catalogStatus === 'offline' ? 'اتصال به موجودی آزمایشی برقرار نیست' : product.stock == null ? 'در حال دریافت موجودی آزمایشی' : product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'
   const copyLink = async () => {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
@@ -469,7 +481,7 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
           <button type="button" className={favorites.includes(product.id) ? 'is-favorite' : ''} aria-label={favorites.includes(product.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'} onClick={() => onFavorite(product.id)}><Heart size={20} fill={favorites.includes(product.id) ? 'currentColor' : 'none'} /></button>
           <button type="button" aria-label="کپی پیوند کالا" onClick={copyLink}><Share2 size={19} /></button>
         </div>
-        <button type="button" className="product-image-trigger" onClick={() => openImage(product)} aria-label="نمایش بزرگ‌تر تصویر کالا"><img src={product.image} alt={product.title} /><span><ZoomIn size={15} /> بزرگ‌نمایی تصویر</span></button>
+        <button type="button" className="product-image-trigger" onClick={() => openImage(product)} aria-label="نمایش بزرگ‌تر تصویر کالا"><img src={assetUrl(product.image)} alt={product.title} /><span><ZoomIn size={15} /> بزرگ‌نمایی تصویر</span></button>
         <p>تصویر محصول نمونه است</p>
         {showShareLink && <div className="product-share-fallback"><label htmlFor="product-share-url">پیوند را انتخاب و کپی کنید</label><input id="product-share-url" dir="ltr" readOnly value={shareUrl} onFocus={(event) => event.target.select()} /></div>}
       </div>
@@ -495,7 +507,7 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
         <button type="button" className="primary-button product-add-button" disabled={!remaining} onClick={() => { if (onAdd(product.id, quantity)) setQuantity(1) }}><ShoppingCart size={19} />{product.stock === 0 ? 'ناموجود' : remaining ? 'افزودن به سبد خرید' : 'حداکثر تعداد در سبد'}</button>
         {inCart > 0 && <button type="button" className="product-open-cart" onClick={openCart}>مشاهده سبد خرید <ChevronLeft size={16} /></button>}
         {inCart > maxTotal && <p className="product-cart-warning">تعداد این کالا در سبد از موجودی فعلی بیشتر است؛ سبد را بررسی کنید.</p>}
-        <div className="product-demo-note"><Truck size={18} /><span>این خرید آزمایشی است؛ پرداخت و ارسال واقعی انجام نمی‌شود.</span></div>
+        <div className="product-demo-note"><Truck size={18} /><span>{STATIC_DEMO ? 'ثبت سفارش، پرداخت و ارسال در این نسخه فعال نیست.' : 'این خرید آزمایشی است؛ پرداخت و ارسال واقعی انجام نمی‌شود.'}</span></div>
       </aside>
     </section>
 
@@ -515,13 +527,13 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
 function Footer({ go, onNotice, notify }) {
   const [email, setEmail] = useState('')
   const assurances = [
-    { Icon: Truck, title: 'ارسال سریع و مطمئن' }, { Icon: Headphones, title: 'پشتیبانی همراه شما' },
-    { Icon: CreditCard, title: 'پرداخت آسان و امن' }, { Icon: RotateCcw, title: 'فرصت بازگشت کالا' }, { Icon: ShieldCheck, title: 'ضمانت اصالت کالا' },
+    { Icon: Smartphone, title: 'وب‌اپ قابل نصب' }, { Icon: Grid2X2, title: 'دسته‌بندی متنوع' },
+    { Icon: ShoppingBag, title: 'سبد خرید محلی' }, { Icon: Heart, title: 'فهرست علاقه‌مندی‌ها' }, { Icon: Info, title: 'اطلاعات نمایشی' },
   ]
   return <footer className="footer"><div className="container-wide">
     <div className="footer-top"><div><Logo onClick={() => go({ type: 'home' })} /><p>کنار شماییم برای یک خرید خوب و دوست‌داشتنی.</p></div><button type="button" className="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>بازگشت به بالا <ArrowUp size={17} /></button></div>
     <div className="assurances">{assurances.map(({ Icon, title }) => <div key={title}><Icon size={29} strokeWidth={1.4} /><span>{title}</span></div>)}</div>
-    <div className="footer-columns"><div><h3>با دیجی‌کارن</h3><button type="button" onClick={onNotice}>درباره دیجی‌کارن</button><button type="button" onClick={onNotice}>تماس با ما</button><button type="button" onClick={onNotice}>فرصت‌های شغلی</button></div><div><h3>خدمات مشتریان</h3><button type="button" onClick={onNotice}>پاسخ به پرسش‌های متداول</button><button type="button" onClick={onNotice}>رویه بازگشت کالا</button><button type="button" onClick={onNotice}>حریم خصوصی</button></div><div><h3>راهنمای خرید</h3><button type="button" onClick={onNotice}>نحوه ثبت سفارش</button><button type="button" onClick={onNotice}>روش‌های ارسال</button><button type="button" onClick={onNotice}>شیوه‌های پرداخت</button></div><div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3><p>ایمیلت رو برامون بذار تا با هم در ارتباط باشیم.</p><form onSubmit={(event) => { event.preventDefault(); if (email.trim()) { notify('خبرنامه در نسخه نمایشی به سرویسی متصل نیست.'); setEmail('') } }}><input type="email" aria-label="آدرس ایمیل" placeholder="ایمیل شما" value={email} onChange={(event) => setEmail(event.target.value)} required /><button type="submit">ثبت</button></form><small>ما هم مثل تو از پیام‌های اضافی خوشمون نمیاد.</small></div></div>
+    <div className="footer-columns"><div><h3>با دیجی‌کارن</h3><button type="button" onClick={onNotice}>درباره دیجی‌کارن</button><button type="button" onClick={onNotice}>تماس با ما</button><button type="button" onClick={onNotice}>فرصت‌های شغلی</button></div><div><h3>خدمات مشتریان</h3><button type="button" onClick={onNotice}>پاسخ به پرسش‌های متداول</button><button type="button" onClick={onNotice}>رویه بازگشت کالا</button><button type="button" onClick={onNotice}>حریم خصوصی</button></div><div><h3>راهنمای خرید</h3><button type="button" onClick={onNotice}>نحوه ثبت سفارش</button><button type="button" onClick={onNotice}>روش‌های ارسال</button><button type="button" onClick={onNotice}>شیوه‌های پرداخت</button></div><div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3>{STATIC_DEMO ? <p>خبرنامه در نسخه نمایشی فعال نیست.</p> : <><p>ایمیلت رو برامون بذار تا با هم در ارتباط باشیم.</p><form onSubmit={(event) => { event.preventDefault(); if (email.trim()) { notify('خبرنامه در نسخه نمایشی به سرویسی متصل نیست.'); setEmail('') } }}><input type="email" aria-label="آدرس ایمیل" placeholder="ایمیل شما" value={email} onChange={(event) => setEmail(event.target.value)} required /><button type="submit">ثبت</button></form><small>ما هم مثل تو از پیام‌های اضافی خوشمون نمیاد.</small></>}</div></div>
     <div className="footer-bottom"><span>© دیجی‌کارن؛ خرید خوب، حال خوب.</span><span>این فروشگاه و اطلاعات کالاها نمونه نمایشی هستند.</span></div>
   </div></footer>
 }
@@ -556,13 +568,13 @@ function ModalShell({ children, close, className = '', label }) {
 function ProductImageModal({ product, close }) {
   return <ModalShell close={close} className="product-image-modal" label={`تصویر ${product.title}`}>
     <div className="modal-heading"><strong>تصویر کالا</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div>
-    <div className="product-image-modal-content"><img src={product.image} alt={product.title} /><p>{product.title}</p><small>تصویر این کالا نمونه است.</small></div>
+    <div className="product-image-modal-content"><img src={assetUrl(product.image)} alt={product.title} /><p>{product.title}</p><small>تصویر این کالا نمونه است.</small></div>
   </ModalShell>
 }
 
 function ProductModal({ product, close, onAdd, isFavorite, onFavorite, openCart, go }) {
   const [added, setAdded] = useState(false)
-  return <ModalShell close={close} className="product-modal" label={`جزئیات ${product.title}`}><div className="modal-heading"><span>جزئیات کالا</span><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><div className="product-detail"><div className="detail-image"><img src={product.image} alt={product.title} /><button type="button" className={`detail-heart ${isFavorite ? 'is-favorite' : ''}`} onClick={() => onFavorite(product.id)} aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}><Heart size={21} fill={isFavorite ? 'currentColor' : 'none'} /></button></div><div className="detail-info"><span className="detail-tag"><Sparkles size={14} /> انتخاب دیجی‌کارن</span><h2>{product.title}</h2><div className="detail-rating"><Star size={16} fill="currentColor" /> {product.rating} <span>({fa(product.reviews)} دیدگاه نمونه)</span></div><div className="detail-features"><strong>ویژگی‌های کالا</strong>{product.features.map((feature) => <span key={feature}><Check size={15} /> {feature}</span>)}</div><div className="detail-guarantee"><ShieldCheck size={19} /> اطلاعات و شرایط خرید نمونه هستند</div>{product.stock != null && <div className="detail-stock">{product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'}</div>}<div className="detail-purchase"><Price product={product} /><button type="button" className="primary-button" disabled={product.stock === 0} onClick={() => { if (onAdd(product.id)) setAdded(true) }}><ShoppingCart size={19} /> {product.stock === 0 ? 'ناموجود' : 'افزودن به سبد خرید'}</button>{added && <button type="button" className="detail-view-cart" onClick={openCart}>مشاهده سبد خرید <ChevronLeft size={15} /></button>}</div></div></div><div className="quick-view-footer"><a href={viewUrl({ type: 'product', id: product.id })} onClick={(event) => followProductLink(event, product.id, (next) => { close(); go(next) })}>مشاهده صفحه کامل کالا <ArrowLeft size={15} /></a><p className="modal-disclaimer">اطلاعات، قیمت و موجودی این کالا در نسخه نمایشی نمونه هستند.</p></div></ModalShell>
+  return <ModalShell close={close} className="product-modal" label={`جزئیات ${product.title}`}><div className="modal-heading"><span>جزئیات کالا</span><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><div className="product-detail"><div className="detail-image"><img src={assetUrl(product.image)} alt={product.title} /><button type="button" className={`detail-heart ${isFavorite ? 'is-favorite' : ''}`} onClick={() => onFavorite(product.id)} aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}><Heart size={21} fill={isFavorite ? 'currentColor' : 'none'} /></button></div><div className="detail-info"><span className="detail-tag"><Sparkles size={14} /> انتخاب دیجی‌کارن</span><h2>{product.title}</h2><div className="detail-rating"><Star size={16} fill="currentColor" /> {product.rating} <span>({fa(product.reviews)} دیدگاه نمونه)</span></div><div className="detail-features"><strong>ویژگی‌های کالا</strong>{product.features.map((feature) => <span key={feature}><Check size={15} /> {feature}</span>)}</div><div className="detail-guarantee"><ShieldCheck size={19} /> اطلاعات و شرایط خرید نمونه هستند</div>{product.stock != null && <div className="detail-stock">{product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'}</div>}<div className="detail-purchase"><Price product={product} /><button type="button" className="primary-button" disabled={product.stock === 0} onClick={() => { if (onAdd(product.id)) setAdded(true) }}><ShoppingCart size={19} /> {product.stock === 0 ? 'ناموجود' : 'افزودن به سبد خرید'}</button>{added && <button type="button" className="detail-view-cart" onClick={openCart}>مشاهده سبد خرید <ChevronLeft size={15} /></button>}</div></div></div><div className="quick-view-footer"><a href={viewUrl({ type: 'product', id: product.id })} onClick={(event) => followProductLink(event, product.id, (next) => { close(); go(next) })}>مشاهده صفحه کامل کالا <ArrowLeft size={15} /></a><p className="modal-disclaimer">اطلاعات، قیمت و موجودی این کالا در نسخه نمایشی نمونه هستند.</p></div></ModalShell>
 }
 
 function CartModal({ cart, close, changeQuantity, go, openCheckout }) {
@@ -572,7 +584,38 @@ function CartModal({ cart, close, changeQuantity, go, openCheckout }) {
   const total = cartItems.reduce((sum, item) => sum + item.price * cart[item.id], 0)
   const saving = cartItems.reduce((sum, item) => sum + (item.oldPrice - item.price) * cart[item.id], 0)
   return <ModalShell close={close} className="cart-modal" label="سبد خرید"><div className="drawer-heading"><div><h2>سبد خرید شما</h2><span>{fa(count)} کالا</span></div><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div>
-    {cartItems.length ? <><div className="cart-items">{cartItems.map((item) => <div className="cart-item" key={item.id}><img src={item.image} alt="" /><div className="cart-item-info"><h3><a href={viewUrl({ type: 'product', id: item.id })} onClick={(event) => followProductLink(event, item.id, (next) => { close(); go(next) })}>{item.title}</a></h3><p><ShieldCheck size={14} /> اطلاعات کالا نمونه است</p><strong>{fa(item.price)} <small>تومان</small></strong><div className="quantity-control"><button type="button" aria-label={`افزایش تعداد ${item.title}`} onClick={() => changeQuantity(item.id, 1)}><Plus size={16} /></button><b>{fa(cart[item.id])}</b><button type="button" aria-label={`${cart[item.id] === 1 ? 'حذف' : 'کاهش تعداد'} ${item.title}`} onClick={() => changeQuantity(item.id, -1)}>{cart[item.id] === 1 ? <Trash2 size={15} /> : <Minus size={16} />}</button></div></div></div>)}</div><div className="cart-summary"><div><span>جمع سبد خرید ({fa(count)} کالا)</span><b>{fa(total + saving)} تومان</b></div><div className="cart-saving"><span>سود شما از خرید</span><b>{fa(saving)} تومان</b></div><div className="cart-total"><span>جمع نمونه</span><b>{fa(total)} <small>تومان</small></b></div><button type="button" className="primary-button" onClick={openCheckout}>ادامه فرایند خرید <ArrowLeft size={18} /></button><p>ادامه خرید صرفاً آزمایشی است؛ پرداخت و ارسال واقعی ندارد.</p></div></> : <div className="empty-cart"><span><ShoppingBag size={48} strokeWidth={1.3} /></span><h3>سبد خریدت هنوز خالیه!</h3><p>کلی کالای جذاب منتظرت هستن.</p><button type="button" className="primary-button" onClick={() => { close(); go({ type: 'all' }) }}>بریم خرید <ArrowLeft size={17} /></button></div>}
+    {cartItems.length ? <><div className="cart-items">{cartItems.map((item) => <div className="cart-item" key={item.id}><img src={assetUrl(item.image)} alt="" /><div className="cart-item-info"><h3><a href={viewUrl({ type: 'product', id: item.id })} onClick={(event) => followProductLink(event, item.id, (next) => { close(); go(next) })}>{item.title}</a></h3><p><ShieldCheck size={14} /> اطلاعات کالا نمونه است</p><strong>{fa(item.price)} <small>تومان</small></strong><div className="quantity-control"><button type="button" aria-label={`افزایش تعداد ${item.title}`} onClick={() => changeQuantity(item.id, 1)}><Plus size={16} /></button><b>{fa(cart[item.id])}</b><button type="button" aria-label={`${cart[item.id] === 1 ? 'حذف' : 'کاهش تعداد'} ${item.title}`} onClick={() => changeQuantity(item.id, -1)}>{cart[item.id] === 1 ? <Trash2 size={15} /> : <Minus size={16} />}</button></div></div></div>)}</div><div className="cart-summary"><div><span>جمع سبد خرید ({fa(count)} کالا)</span><b>{fa(total + saving)} تومان</b></div><div className="cart-saving"><span>سود شما از خرید</span><b>{fa(saving)} تومان</b></div><div className="cart-total"><span>جمع نمونه</span><b>{fa(total)} <small>تومان</small></b></div><button type="button" className="primary-button" onClick={openCheckout}>{STATIC_DEMO ? 'بررسی وضعیت سفارش' : 'ادامه فرایند خرید'} <ArrowLeft size={18} /></button><p>{STATIC_DEMO ? 'ثبت سفارش در این نسخه فعال نیست.' : 'ادامه خرید صرفاً آزمایشی است؛ پرداخت و ارسال واقعی ندارد.'}</p></div></> : <div className="empty-cart"><span><ShoppingBag size={48} strokeWidth={1.3} /></span><h3>سبد خریدت هنوز خالیه!</h3><p>کلی کالای جذاب منتظرت هستن.</p><button type="button" className="primary-button" onClick={() => { close(); go({ type: 'all' }) }}>بریم خرید <ArrowLeft size={17} /></button></div>}
+  </ModalShell>
+}
+
+function StaticCheckoutModal({ close, backToCart }) {
+  return <ModalShell close={close} className="small-modal availability-modal" label="وضعیت سفارش در نسخه نمایشی">
+    <button type="button" className="modal-close close-floating" onClick={close} aria-label="بستن"><X size={21} /></button>
+    <span className="availability-icon"><ShoppingBag size={25} /></span>
+    <h2>ثبت سفارش در این نسخه فعال نیست</h2>
+    <p>گیت‌هاب پیجز فقط نسخهٔ نمایشی وب‌اپ را نمایش می‌دهد و به سرور سفارش متصل نیست. پرداخت و ارسال نیز انجام نمی‌شود.</p>
+    <div className="availability-note">سبد خرید و علاقه‌مندی‌ها فقط در همین مرورگر ذخیره می‌شوند؛ هیچ اطلاعات شخصی برای سفارش دریافت نمی‌شود.</div>
+    <button type="button" className="primary-button" onClick={backToCart}><ArrowRight size={17} /> بازگشت به سبد خرید</button>
+  </ModalShell>
+}
+
+function InstallModal({ close, installPrompt, install, installed }) {
+  return <ModalShell close={close} className="small-modal install-modal" label="نصب وب‌اپ دیجی‌کارن">
+    <button type="button" className="modal-close close-floating" onClick={close} aria-label="بستن"><X size={21} /></button>
+    <span className="availability-icon"><Smartphone size={25} /></span>
+    <h2>دیجی‌کارن، همیشه همراهت</h2>
+    <p>وب‌اپ را به صفحه اصلی دستگاهت اضافه کن. بعد از یک بار بازدید و آماده‌شدن داده‌ها، مرور کالاهای نمونه بدون اینترنت هم ممکن است.</p>
+    {installed ? <div className="availability-note">وب‌اپ در حالت نصب‌شده باز است یا درخواست نصب پذیرفته شده است.</div> : installPrompt ? <button type="button" className="primary-button" onClick={install}><Download size={17} /> نصب وب‌اپ</button> : <div className="availability-note">در منوی مرورگر گزینهٔ «نصب برنامه» یا «افزودن به صفحه اصلی» را انتخاب کن. در آیفون، از دکمهٔ اشتراک‌گذاری Safari و سپس «Add to Home Screen» استفاده کن.</div>}
+  </ModalShell>
+}
+
+function StaticLoginModal({ close }) {
+  return <ModalShell close={close} className="small-modal availability-modal" label="وضعیت ورود">
+    <button type="button" className="modal-close close-floating" onClick={close} aria-label="بستن"><X size={21} /></button>
+    <span className="availability-icon"><UserRound size={25} /></span>
+    <h2>ورود در نسخه نمایشی فعال نیست</h2>
+    <p>این نسخه به سرویس حساب کاربری یا پیامک متصل نیست؛ برای مرور کالاها نیازی به وارد کردن شماره موبایل ندارید.</p>
+    <button type="button" className="primary-button" onClick={close}>متوجه شدم</button>
   </ModalShell>
 }
 
@@ -675,7 +718,7 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
       </form>
       <aside className="checkout-summary" aria-label="خلاصه سفارش آزمایشی">
         <h2>خلاصه سفارش</h2>
-        <div className="checkout-items">{cartItems.map((item) => <div key={item.id}><img src={item.image} alt="" /><div><strong>{item.title}</strong><span>{fa(cart[item.id])} عدد</span></div></div>)}</div>
+        <div className="checkout-items">{cartItems.map((item) => <div key={item.id}><img src={assetUrl(item.image)} alt="" /><div><strong>{item.title}</strong><span>{fa(cart[item.id])} عدد</span></div></div>)}</div>
         <div className="checkout-total"><span>جمع {fa(count)} کالا</span><b>{fa(total)} <small>تومان</small></b></div>
         <div className="checkout-payment"><CreditCard size={19} /><div><strong>بدون پرداخت</strong><span>درگاه پرداخت متصل نیست</span></div></div>
         <button form="checkout-form" type="submit" className="primary-button" disabled={busy || !cartItems.length}>{busy ? 'در حال ثبت...' : 'ثبت سفارش آزمایشی'} <ArrowLeft size={17} /></button>
@@ -695,13 +738,13 @@ function LoginModal({ close, home }) {
 function LocationModal({ close, city, setCity }) {
   const [query, setQuery] = useState('')
   const cities = ['تهران', 'کرج', 'مشهد', 'اصفهان', 'شیراز', 'تبریز', 'قم', 'اهواز', 'رشت', 'یزد', 'کرمان', 'ارومیه']
-  return <ModalShell close={close} className="small-modal location-modal" label="انتخاب شهر"><div className="modal-heading"><strong>شهر خود را انتخاب کنید</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><p>برای دیدن شرایط ارسال، شهر مورد نظرت رو انتخاب کن.</p><div className="city-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی شهر" aria-label="جستجوی شهر" /></div><div className="city-list">{cities.filter((item) => normalize(item).includes(normalize(query))).map((item) => <button type="button" key={item} onClick={() => { setCity(item); close() }}><MapPin size={17} />{item}{city === item ? <Check size={17} /> : <ChevronLeft size={17} />}</button>)}{!cities.some((item) => normalize(item).includes(normalize(query))) && <p>شهری با این نام پیدا نشد.</p>}</div></ModalShell>
+  return <ModalShell close={close} className="small-modal location-modal" label="انتخاب شهر"><div className="modal-heading"><strong>شهر خود را انتخاب کنید</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><p>{STATIC_DEMO ? 'شهر مورد نظرت را برای نمایش انتخاب کن؛ ارسال واقعی فعال نیست.' : 'برای دیدن شرایط ارسال، شهر مورد نظرت رو انتخاب کن.'}</p><div className="city-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی شهر" aria-label="جستجوی شهر" /></div><div className="city-list">{cities.filter((item) => normalize(item).includes(normalize(query))).map((item) => <button type="button" key={item} onClick={() => { setCity(item); close() }}><MapPin size={17} />{item}{city === item ? <Check size={17} /> : <ChevronLeft size={17} />}</button>)}{!cities.some((item) => normalize(item).includes(normalize(query))) && <p>شهری با این نام پیدا نشد.</p>}</div></ModalShell>
 }
 
 function Support({ open, setOpen }) {
   const [answer, setAnswer] = useState('')
   const faqs = [
-    ['چطور سفارش ثبت کنم؟', 'کالاها را به سبد اضافه کن و مراحل سفارش آزمایشی را انجام بده. پرداخت و ارسال واقعی فعال نیستند.'],
+    ['چطور سفارش ثبت کنم؟', STATIC_DEMO ? 'در نسخه گیت‌هاب پیجز ثبت سفارش، پرداخت و ارسال فعال نیستند. سبد فقط در همین مرورگر ذخیره می‌شود.' : 'کالاها را به سبد اضافه کن و مراحل سفارش آزمایشی را انجام بده. پرداخت و ارسال واقعی فعال نیستند.'],
     ['شرایط ارسال چطوره؟', 'روش‌ها و هزینه ارسال پس از اتصال فروشگاه به سرویس واقعی مشخص می‌شوند.'],
     ['چطور کالا رو برگردونم؟', 'شرایط بازگشت کالا پس از راه‌اندازی فروشگاه واقعی اعلام خواهد شد.'],
   ]
@@ -711,7 +754,7 @@ function Support({ open, setOpen }) {
 export default function App() {
   const [view, setView] = useState(readView)
   const [catalogProducts, setCatalogProducts] = useState(sampleProducts)
-  const [catalogStatus, setCatalogStatus] = useState('loading')
+  const [catalogStatus, setCatalogStatus] = useState(STATIC_DEMO ? 'static' : 'loading')
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [cart, setCart] = useStoredState('digikaren-cart', {})
   const [favorites, setFavorites] = useStoredState('digikaren-favorites', [])
@@ -719,9 +762,20 @@ export default function App() {
   const [modal, setModal] = useState(null)
   const [supportOpen, setSupportOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [appInstalled, setAppInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches || Boolean(navigator.standalone))
   const toastTimer = useRef(null)
 
+  useEffect(() => {
+    const beforeInstall = (event) => { event.preventDefault(); setInstallPrompt(event) }
+    const installed = () => { setAppInstalled(true); setInstallPrompt(null) }
+    window.addEventListener('beforeinstallprompt', beforeInstall)
+    window.addEventListener('appinstalled', installed)
+    return () => { window.removeEventListener('beforeinstallprompt', beforeInstall); window.removeEventListener('appinstalled', installed) }
+  }, [])
+
   const refreshCatalog = useCallback(async () => {
+    if (STATIC_DEMO) return false
     try {
       const response = await fetch('/api/catalog', { cache: 'no-store' })
       if (!response.ok) throw new Error('catalog unavailable')
@@ -788,11 +842,24 @@ export default function App() {
   const onFavorite = (id) => { const already = favorites.includes(id); setFavorites((current) => already ? current.filter((item) => item !== id) : [...current, id]); notify(already ? 'از علاقه‌مندی‌ها حذف شد' : 'به علاقه‌مندی‌هات اضافه شد') }
   const openModal = (type, data) => setModal({ type, data })
   const closeModal = () => { if (!checkoutBusy) setModal(null) }
+  const installApp = async () => {
+    if (!installPrompt) return
+    try {
+      await installPrompt.prompt()
+      const choice = await installPrompt.userChoice
+      setInstallPrompt(null)
+      if (choice.outcome === 'accepted') { setAppInstalled(true); setModal(null) }
+    } catch {
+      setInstallPrompt(null)
+      notify('برای نصب، از گزینه افزودن به صفحه اصلی در منوی مرورگر استفاده کنید.')
+    }
+  }
   const onNotice = () => notify('این بخش در نسخه نمایشی فعال نیست.')
   const common = { favorites, onFavorite, onAdd, onOpen: (product) => openModal('product', product), go }
   const cartCount = Object.values(cart).reduce((sum, count) => sum + (Number(count) || 0), 0)
   return <CatalogContext.Provider value={catalogProducts}>
     <Header view={view} go={go} cartCount={cartCount} favorites={favorites} city={city} openModal={openModal} onSupport={() => setSupportOpen(true)} />
+    <AppNotice openInstall={() => openModal('install')} />
     {view.type === 'home' ? <HomePage {...common} onNotice={onNotice} /> : view.type === 'categories' ? <CategoryDirectory go={go} /> : view.type === 'product' ? <ProductPage key={view.id} id={view.id} catalogStatus={catalogStatus} cart={cart} {...common} openImage={(product) => openModal('product-image', product)} openCart={() => openModal('cart')} notify={notify} /> : <Catalog key={`${view.type}-${view.id || view.query || ''}-${view.sub || ''}`} view={view} {...common} />}
     <Footer go={go} onNotice={onNotice} notify={notify} />
     <Support open={supportOpen} setOpen={setSupportOpen} />
@@ -800,8 +867,9 @@ export default function App() {
     {modal?.type === 'product' && <ProductModal product={catalogProducts.find((product) => product.id === modal.data.id) || modal.data} close={closeModal} onAdd={onAdd} isFavorite={favorites.includes(modal.data.id)} onFavorite={onFavorite} openCart={() => openModal('cart')} go={go} />}
     {modal?.type === 'product-image' && <ProductImageModal product={modal.data} close={closeModal} />}
     {modal?.type === 'cart' && <CartModal cart={cart} close={closeModal} changeQuantity={changeQuantity} go={go} openCheckout={() => openModal('checkout')} />}
-    {modal?.type === 'checkout' && <CheckoutModal cart={cart} city={city} close={closeModal} backToCart={() => openModal('cart')} busy={checkoutBusy} setBusy={setCheckoutBusy} catalogStatus={catalogStatus} refreshCatalog={refreshCatalog} onSuccess={() => setCart({})} />}
-    {modal?.type === 'login' && <LoginModal close={closeModal} home={() => go({ type: 'home' })} />}
+    {modal?.type === 'checkout' && (STATIC_DEMO ? <StaticCheckoutModal close={closeModal} backToCart={() => openModal('cart')} /> : <CheckoutModal cart={cart} city={city} close={closeModal} backToCart={() => openModal('cart')} busy={checkoutBusy} setBusy={setCheckoutBusy} catalogStatus={catalogStatus} refreshCatalog={refreshCatalog} onSuccess={() => setCart({})} />)}
+    {modal?.type === 'login' && (STATIC_DEMO ? <StaticLoginModal close={closeModal} /> : <LoginModal close={closeModal} home={() => go({ type: 'home' })} />)}
+    {modal?.type === 'install' && <InstallModal close={closeModal} installPrompt={installPrompt} install={installApp} installed={appInstalled} />}
     {modal?.type === 'location' && <LocationModal close={closeModal} city={city} setCity={setCity} />}
   </CatalogContext.Provider>
 }
