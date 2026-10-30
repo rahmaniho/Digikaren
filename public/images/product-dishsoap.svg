@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="مایع ظرفشویی">
+ <defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#9edcc4"/><stop offset="1" stop-color="#27986d"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="9"/></filter></defs>
+ <rect width="600" height="600" fill="#fff"/><ellipse cx="300" cy="500" rx="115" ry="16" fill="#718b7f" opacity=".16" filter="url(#shadow)"/>
+ <rect x="268" y="100" width="64" height="51" rx="9" fill="#318b72"/><path d="M271 148h58v30c0 17 13 25 28 36 22 17 35 42 35 73v151c0 36-25 61-61 61h-62c-36 0-61-25-61-61V287c0-31 13-56 35-73 15-11 28-19 28-36z" fill="url(#b)"/>
+ <path d="M239 289c0-23 8-42 24-54" fill="none" stroke="#d6f4e9" stroke-width="11" stroke-linecap="round" opacity=".65"/><rect x="230" y="316" width="140" height="111" rx="14" fill="#effbf4"/><path d="M300 341c-17 24-29 40-29 53a29 29 0 0 0 58 0c0-13-12-29-29-53z" fill="#69b99a"/><circle cx="430" cy="229" r="20" fill="#dff4eb"/><circle cx="469" cy="196" r="12" fill="#eaf8f2"/>
+</svg>

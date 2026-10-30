@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="تصویر نمادین تیونر گیره‌ای">
+<defs><linearGradient id="body" x2="1" y2="1"><stop stop-color="#566473"/><stop offset="1" stop-color="#18212a"/></linearGradient><linearGradient id="screen" x2="0" y2="1"><stop stop-color="#c5efc7"/><stop offset="1" stop-color="#60bc8c"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="12"/></filter></defs>
+<rect width="600" height="600" fill="#fff"/><ellipse cx="300" cy="504" rx="170" ry="22" fill="#71849a" opacity=".16" filter="url(#shadow)"/>
+<path d="M273 339h55v53h-55z" fill="#34414a"/><circle cx="301" cy="391" r="25" fill="#28333d" stroke="#60717a" stroke-width="5"/>
+<path d="M287 400c-43 7-71 34-87 66-4 8 1 17 10 20l24 7c7 2 13-1 17-8l24-34c8-10 19-14 30-14s22 4 30 14l24 34c4 7 10 10 17 8l24-7c9-3 14-12 10-20-16-32-44-59-87-66Z" fill="url(#body)" stroke="#222c35" stroke-width="4"/>
+<rect x="153" y="118" width="294" height="239" rx="35" fill="url(#body)" stroke="#202c37" stroke-width="6"/><rect x="178" y="143" width="244" height="159" rx="14" fill="url(#screen)" stroke="#1a312b" stroke-width="7"/>
+<path d="M205 263a97 97 0 0 1 190 0" fill="none" stroke="#42765d" stroke-width="4" stroke-dasharray="3 9"/><path d="M300 264l44-64" stroke="#337057" stroke-width="5" stroke-linecap="round"/><circle cx="300" cy="264" r="6" fill="#337057"/>
+<text x="300" y="225" text-anchor="middle" fill="#194d39" font-size="54" font-family="sans-serif" font-weight="bold">G</text><g fill="#8798a4"><circle cx="217" cy="330" r="6"/><circle cx="383" cy="330" r="6"/></g><path d="M182 128h236" stroke="#a8b6c0" stroke-width="4" opacity=".4"/>
+</svg>
