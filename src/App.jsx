@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, ArrowUp, BadgePercent, Baby, BedDouble, BookOpen, BriefcaseBusiness,
   Check, CheckCircle2, ChevronDown, Clock3, ChevronLeft, ChevronRight, CookingPot,
   CreditCard, Download, Dumbbell, Eye, Flame, Flower2, Gamepad2, Gift, Grid2X2, Headphones, Heart, HeartPulse, Info,
-  Home, LampDesk, Laptop, MapPin, Minus, Monitor, Music2, Palette, PartyPopper, PawPrint, Plus, Search, ShieldCheck, Shirt, SprayCan,
+  Home, LampDesk, Laptop, MapPin, Minus, Monitor, Music2, NotebookPen, Palette, PartyPopper, PawPrint, Plus, Search, ShieldCheck, Shirt, SprayCan,
   ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Smartphone,
   Share2, Sparkles, Star, Store, Trash2, Truck, UserRound, Watch, X, Zap, ZoomIn,
 } from 'lucide-react'
@@ -11,13 +11,16 @@ import { categories, products as sampleProducts, slides } from './data'
 import { clearCheckoutKey, keyForCheckout } from './checkout'
 import { followProductLink, viewFromSearch, viewUrl } from './navigation'
 import { relatedProducts } from './recommendations'
-import { productQuantityLimit, quantityAvailableToAdd } from './cart-limits'
+import { MAX_ORDER_ITEMS, productQuantityLimit, quantityAvailableToAdd } from './cart-limits'
 import { assetUrl } from './assets'
 import { filterCatalog, matchesProduct, normalizeText } from './discovery'
 import { cleanProductIds, MAX_COMPARE, MAX_RECENT, recordViewed, toggleComparison } from './comparison'
 import { cartIssues, cleanCart } from './cart'
 import { CatalogFilters } from './CatalogFilters'
 import { CompareDock, ComparePage, CompareProvider, CompareToggle } from './Compare'
+import { cleanNotes, putNote, cleanReceipts, recordReceipt } from './personal-data'
+import { WorkspacePage, RecentPage, NotesPage, ProductNote, ReceiptsPage } from './Personal'
+import { HelpPage } from './Help'
 
 const STATIC_DEMO = import.meta.env.MODE === 'pages'
 const fa = (number) => new Intl.NumberFormat('fa-IR').format(number)
@@ -50,6 +53,14 @@ function useStoredState(key, initialValue, sanitize = (value) => value) {
   return [value, setValue]
 }
 
+function writeBrowserValue(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true } catch { return false }
+}
+
+function removeBrowserValue(key) {
+  try { localStorage.removeItem(key); return true } catch { return false }
+}
+
 function Logo({ onClick }) {
   return (
     <button type="button" className="logo" onClick={onClick} aria-label="دیجی‌کارن، صفحه اصلی">
@@ -58,7 +69,7 @@ function Logo({ onClick }) {
   )
 }
 
-function Header({ view, go, cartCount, favorites, city, openModal, onSupport }) {
+function Header({ view, go, cartCount, favorites, city, openModal }) {
   const products = useContext(CatalogContext)
   const [searchValue, setSearchValue] = useState(view.type === 'search' ? view.query : '')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -130,11 +141,11 @@ function Header({ view, go, cartCount, favorites, city, openModal, onSupport }) 
           </div>}
         </div>
         <button type="button" className={`primary-nav-link ${view.type === 'deals' ? 'active' : ''}`} onClick={() => go({ type: 'deals' })}>تخفیف‌ها</button>
-        <button type="button" className="primary-nav-link nav-contact" onClick={onSupport}>تماس با ما</button>
+        <button type="button" className="primary-nav-link nav-contact" onClick={() => go({ type: 'help', topic: 'contact' })}>تماس با ما</button>
       </nav>
       <div className="header-actions">
         <button type="button" className="location-button" onClick={() => openModal('location')} aria-label={`انتخاب شهر، ارسال به ${city}`}><MapPin size={17} /><span>{city}</span></button>
-        <button type="button" className="icon-button login-button" onClick={() => openModal('login')} aria-label="ورود یا ثبت‌نام"><UserRound size={22} /></button>
+        <button type="button" className="icon-button login-button" onClick={() => go({ type: 'workspace' })} aria-label="فضای خرید من" title="فضای خرید من"><UserRound size={22} /></button>
         <button type="button" className="icon-button header-favorites" aria-label={`علاقه‌مندی‌ها، ${fa(favorites.length)} کالا`} onClick={() => go({ type: 'favorites' })}><Heart size={21} />{favorites.length > 0 && <span className="counter">{fa(favorites.length)}</span>}</button>
         <button type="button" className="icon-button cart-button" aria-label={`سبد خرید، ${fa(cartCount)} کالا`} onClick={() => openModal('cart')}><ShoppingCart size={23} />{cartCount > 0 && <span className="counter">{fa(cartCount)}</span>}</button>
       </div>
@@ -178,12 +189,12 @@ function Hero({ go }) {
   </section>
 }
 
-function QuickLinks({ go, onNotice }) {
+function QuickLinks({ go }) {
   const items = [
     { label: 'شگفت‌انگیزها', Icon: BadgePercent, tone: 'featured', action: () => go({ type: 'deals' }) },
     { label: 'سوپرمارکت', Icon: ShoppingBasket, tone: 'green', action: () => go({ type: 'category', id: 'grocery' }) },
     { label: 'موبایل', Icon: Smartphone, tone: 'blue', action: () => go({ type: 'category', id: 'mobile' }) },
-    { label: 'خرید اقساطی', Icon: CreditCard, tone: 'purple', action: onNotice },
+    { label: 'خرید اقساطی', Icon: CreditCard, tone: 'purple', action: () => go({ type: 'help', topic: 'payment' }) },
     { label: 'مد و پوشاک', Icon: Shirt, tone: 'orange', action: () => go({ type: 'category', id: 'fashion' }) },
     { label: 'خانه و آشپزخانه', Icon: CookingPot, tone: 'teal', action: () => go({ type: 'category', id: 'home' }) },
     { label: 'زیبایی و سلامت', Icon: HeartPulse, tone: 'pink', action: () => go({ type: 'category', id: 'beauty' }) },
@@ -348,13 +359,13 @@ function RecentlyViewed({ recent, clearRecent, favorites, onFavorite, onAdd, onO
   const selected = recent.map((id) => products.find((item) => item.id === id)).filter(Boolean).slice(0, 6)
   if (!selected.length) return null
   return <section className="best-section recent-section section-space" aria-labelledby="recent-heading">
-    <div className="section-heading inline"><div><span className="heading-eyebrow">برای ادامه جست‌وجوی تو</span><h2 id="recent-heading"><Clock3 size={22} /> بازدیدهای اخیر</h2><p>فقط در این مرورگر ذخیره می‌شود.</p></div><button type="button" className="section-link" onClick={clearRecent}><Trash2 size={15} /> پاک کردن تاریخچه</button></div>
+    <div className="section-heading inline"><div><span className="heading-eyebrow">برای ادامه جست‌وجوی تو</span><h2 id="recent-heading"><Clock3 size={22} /> بازدیدهای اخیر</h2><p>فقط در این مرورگر ذخیره می‌شود.</p></div><div className="recent-actions"><button type="button" className="section-link" onClick={() => go({ type: 'recent' })}>مشاهده همه <ChevronLeft size={15} /></button><button type="button" className="section-link" onClick={clearRecent}><Trash2 size={15} /> پاک کردن تاریخچه</button></div></div>
     <div className="best-grid">{selected.map((product) => <ProductCard key={product.id} product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div>
   </section>
 }
 
 function HomePage(props) {
-  return <main className="container-wide home-main"><Hero go={props.go} /><QuickLinks go={props.go} onNotice={props.onNotice} /><Deals {...props} /><SupermarketBanner go={props.go} /><CategorySection go={props.go} /><PromoCards go={props.go} /><NewArrivals {...props} /><RecentlyViewed {...props} /><BestSelling {...props} /><Discover go={props.go} /></main>
+  return <main className="container-wide home-main"><Hero go={props.go} /><QuickLinks go={props.go} /><Deals {...props} /><SupermarketBanner go={props.go} /><CategorySection go={props.go} /><PromoCards go={props.go} /><NewArrivals {...props} /><RecentlyViewed {...props} /><BestSelling {...props} /><Discover go={props.go} /></main>
 }
 
 function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen, catalogStatus }) {
@@ -444,7 +455,7 @@ function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen, catalogStatus
   </main>
 }
 
-function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, onOpen, go, openImage, openCart, notify }) {
+function ProductPage({ id, section, catalogStatus, cart, favorites, notes, onSaveNote, onDeleteNote, onFavorite, onAdd, onOpen, go, openImage, openCart, notify }) {
   const products = useContext(CatalogContext)
   const product = products.find((item) => item.id === id)
   const [quantity, setQuantity] = useState(1)
@@ -454,6 +465,15 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
   const remaining = quantityAvailableToAdd(product, inCart)
 
   useEffect(() => { setQuantity((current) => Math.max(1, Math.min(current, remaining || 1))) }, [remaining])
+  useEffect(() => {
+    if (section !== 'note' || !product) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById('personal-note')
+      target?.scrollIntoView({ block: 'start' })
+      target?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [id, section, Boolean(product)])
 
   if (!product) return <main className="container-wide product-page product-not-found">
     <div className="breadcrumbs"><button type="button" onClick={() => go({ type: 'home' })}>دیجی‌کارن</button><ChevronLeft size={14} /><span>کالا</span></div>
@@ -498,6 +518,7 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
         <span className="product-page-badge"><Sparkles size={14} /> انتخاب دیجی‌کارن</span>
         <h1>{product.title}</h1>
         <div className="product-page-meta"><span><Star size={16} fill="currentColor" /> {product.rating}</span><span>{fa(product.reviews)} دیدگاه نمونه</span><span>شناسه: <b dir="ltr">{product.id}</b></span></div>
+        <button type="button" className="product-note-shortcut" onClick={() => { const target = document.getElementById('personal-note'); target?.scrollIntoView({ behavior: 'smooth', block: 'start' }); target?.focus({ preventScroll: true }) }}><NotebookPen size={16} /> {Object.hasOwn(notes, product.id) ? 'مشاهده یادداشت شخصی' : 'یادداشت برای این کالا'} <ChevronLeft size={14} /></button>
         <div className="product-page-features"><h2>ویژگی‌های کالا</h2><ul>{product.features.map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul></div>
         <div className="product-category-tags"><span>دسته‌بندی:</span>{product.categories.map((categoryId) => {
           const category = categories.find((item) => item.id === categoryId)
@@ -525,6 +546,8 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
       <div className="product-review-notice"><Star size={19} /><div><strong>دیدگاه‌ها و امتیازها نمونه‌اند</strong><p>امکان ثبت یا مشاهده دیدگاه‌های واقعی در این نسخه فعال نیست.</p></div></div>
     </section>
 
+    <ProductNote productId={product.id} note={Object.hasOwn(notes, product.id) ? notes[product.id] : ''} onSave={onSaveNote} onDelete={onDeleteNote} go={go} />
+
     {related.length > 0 && <section className="product-related section-space" aria-labelledby="product-related-heading">
       <div className="section-heading inline"><div><span className="heading-eyebrow">انتخاب‌های بیشتر از همین دسته‌ها</span><h2 id="product-related-heading"><Sparkles size={21} /> کالاهای مرتبط</h2></div>{primaryCategory && <button type="button" className="section-link" onClick={() => go({ type: 'category', id: primaryCategory.id })}>مشاهده دسته <ChevronLeft size={17} /></button>}</div>
       <div className="product-related-grid" style={{ '--related-columns': Math.max(3, related.length) }}>{related.map((item) => <ProductCard key={item.id} product={item} isFavorite={favorites.includes(item.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div>
@@ -532,16 +555,20 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
   </main>
 }
 
-function Footer({ go, onNotice, notify }) {
-  const [email, setEmail] = useState('')
+function Footer({ go }) {
   const assurances = [
     { Icon: Smartphone, title: 'وب‌اپ قابل نصب' }, { Icon: Grid2X2, title: 'دسته‌بندی متنوع' },
     { Icon: ShoppingBag, title: 'سبد خرید محلی' }, { Icon: Heart, title: 'فهرست علاقه‌مندی‌ها' }, { Icon: Info, title: 'اطلاعات نمایشی' },
   ]
+  const groups = [
+    { title: 'با دیجی‌کارن', links: [['درباره دیجی‌کارن', 'about'], ['تماس با ما', 'contact'], ['فرصت‌های شغلی', 'careers']] },
+    { title: 'خدمات مشتریان', links: [['پاسخ به پرسش‌های متداول', 'start'], ['رویه بازگشت کالا', 'returns'], ['حریم خصوصی', 'privacy']] },
+    { title: 'راهنمای خرید', links: [['نحوه ثبت سفارش', 'orders'], ['روش‌های ارسال', 'delivery'], ['شیوه‌های پرداخت', 'payment']] },
+  ]
   return <footer className="footer"><div className="container-wide">
     <div className="footer-top"><div><Logo onClick={() => go({ type: 'home' })} /><p>کنار شماییم برای یک خرید خوب و دوست‌داشتنی.</p></div><button type="button" className="back-to-top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>بازگشت به بالا <ArrowUp size={17} /></button></div>
     <div className="assurances">{assurances.map(({ Icon, title }) => <div key={title}><Icon size={29} strokeWidth={1.4} /><span>{title}</span></div>)}</div>
-    <div className="footer-columns"><div><h3>با دیجی‌کارن</h3><button type="button" onClick={onNotice}>درباره دیجی‌کارن</button><button type="button" onClick={onNotice}>تماس با ما</button><button type="button" onClick={onNotice}>فرصت‌های شغلی</button></div><div><h3>خدمات مشتریان</h3><button type="button" onClick={onNotice}>پاسخ به پرسش‌های متداول</button><button type="button" onClick={onNotice}>رویه بازگشت کالا</button><button type="button" onClick={onNotice}>حریم خصوصی</button></div><div><h3>راهنمای خرید</h3><button type="button" onClick={onNotice}>نحوه ثبت سفارش</button><button type="button" onClick={onNotice}>روش‌های ارسال</button><button type="button" onClick={onNotice}>شیوه‌های پرداخت</button></div><div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3>{STATIC_DEMO ? <p>خبرنامه در نسخه نمایشی فعال نیست.</p> : <><p>ایمیلت رو برامون بذار تا با هم در ارتباط باشیم.</p><form onSubmit={(event) => { event.preventDefault(); if (email.trim()) { notify('خبرنامه در نسخه نمایشی به سرویسی متصل نیست.'); setEmail('') } }}><input type="email" aria-label="آدرس ایمیل" placeholder="ایمیل شما" value={email} onChange={(event) => setEmail(event.target.value)} required /><button type="submit">ثبت</button></form><small>ما هم مثل تو از پیام‌های اضافی خوشمون نمیاد.</small></>}</div></div>
+    <div className="footer-columns">{groups.map((group) => <div key={group.title}><h3>{group.title}</h3>{group.links.map(([label, topic]) => <button type="button" key={topic} onClick={() => go({ type: 'help', topic })}>{label}</button>)}</div>)}<div className="newsletter"><h3>از تخفیف‌ها و تازه‌ها باخبر شو!</h3><p>خبرنامه در نسخه نمایشی فعال نیست.</p><button type="button" onClick={() => go({ type: 'workspace' })}>مشاهده فضای من <ArrowLeft size={15} /></button></div></div>
     <div className="footer-bottom"><span>© دیجی‌کارن؛ خرید خوب، حال خوب.</span><span>این فروشگاه و اطلاعات کالاها نمونه نمایشی هستند.</span></div>
   </div></footer>
 }
@@ -573,6 +600,14 @@ function ModalShell({ children, close, className = '', label }) {
   return <div className={`modal-backdrop ${className}`} onMouseDown={(event) => { if (event.target === event.currentTarget) close() }}><div ref={panelRef} tabIndex="-1" className="modal-panel" role="dialog" aria-modal="true" aria-label={label}>{children}</div></div>
 }
 
+function ConfirmModal({ close, title, message, onConfirm, isReset = false }) {
+  return <ModalShell close={close} className="small-modal confirm-modal" label={title}>
+    <span className="confirm-icon">{isReset ? <MapPin size={22} /> : <Trash2 size={22} />}</span>
+    <h2>{title}</h2><p>{message}</p>
+    <div className="confirm-actions"><button type="button" className="personal-outline-button" onClick={close}>انصراف</button><button type="button" className="confirm-danger" onClick={() => { onConfirm(); close() }}>{isReset ? 'بله، بازنشانی شود' : 'بله، پاک شود'}</button></div>
+  </ModalShell>
+}
+
 function ProductImageModal({ product, close }) {
   return <ModalShell close={close} className="product-image-modal" label={`تصویر ${product.title}`}>
     <div className="modal-heading"><strong>تصویر کالا</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div>
@@ -585,17 +620,21 @@ function ProductModal({ product, close, onAdd, isFavorite, onFavorite, openCart,
   return <ModalShell close={close} className="product-modal" label={`جزئیات ${product.title}`}><div className="modal-heading"><span>جزئیات کالا</span><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><div className="product-detail"><div className="detail-image"><img src={assetUrl(product.image)} alt={product.title} /><button type="button" className={`detail-heart ${isFavorite ? 'is-favorite' : ''}`} onClick={() => onFavorite(product.id)} aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}><Heart size={21} fill={isFavorite ? 'currentColor' : 'none'} /></button></div><div className="detail-info"><span className="detail-tag"><Sparkles size={14} /> انتخاب دیجی‌کارن</span><h2>{product.title}</h2><div className="detail-rating"><Star size={16} fill="currentColor" /> {product.rating} <span>({fa(product.reviews)} دیدگاه نمونه)</span></div><div className="detail-features"><strong>ویژگی‌های کالا</strong>{product.features.map((feature) => <span key={feature}><Check size={15} /> {feature}</span>)}</div><div className="detail-guarantee"><ShieldCheck size={19} /> اطلاعات و شرایط خرید نمونه هستند</div>{product.stock != null && <div className="detail-stock">{product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'}</div>}<div className="detail-purchase"><Price product={product} /><button type="button" className="primary-button" disabled={product.stock === 0} onClick={() => { if (onAdd(product.id)) setAdded(true) }}><ShoppingCart size={19} /> {product.stock === 0 ? 'ناموجود' : 'افزودن به سبد خرید'}</button>{added && <button type="button" className="detail-view-cart" onClick={openCart}>مشاهده سبد خرید <ChevronLeft size={15} /></button>}</div></div></div><div className="quick-view-footer"><a href={viewUrl({ type: 'product', id: product.id })} onClick={(event) => followProductLink(event, product.id, (next) => { close(); go(next) })}>مشاهده صفحه کامل کالا <ArrowLeft size={15} /></a><p className="modal-disclaimer">اطلاعات، قیمت و موجودی این کالا در نسخه نمایشی نمونه هستند.</p></div></ModalShell>
 }
 
-function CartModal({ cart, close, changeQuantity, removeItem, clearCart, go, openCheckout }) {
+function CartModal({ cart, close, changeQuantity, removeItem, clearCart, saveForLater, go, openCheckout }) {
   const products = useContext(CatalogContext)
+  const [confirmClear, setConfirmClear] = useState(false)
   const cartItems = products.filter((item) => cart[item.id] > 0)
   const { unknown, quantity } = cartIssues(cart, products)
   const count = Object.values(cart).reduce((sum, value) => sum + value, 0)
   const total = cartItems.reduce((sum, item) => sum + item.price * cart[item.id], 0)
   const saving = cartItems.reduce((sum, item) => sum + (item.oldPrice - item.price) * cart[item.id], 0)
-  const hasIssues = unknown.length > 0 || quantity.length > 0
+  const tooMany = !STATIC_DEMO && Object.keys(cart).length > MAX_ORDER_ITEMS
+  const hasIssues = unknown.length > 0 || quantity.length > 0 || tooMany
   return <ModalShell close={close} className="cart-modal" label="سبد خرید">
-    <div className="drawer-heading"><div><h2>سبد خرید شما</h2><span>{fa(count)} کالا</span></div><div className="cart-heading-actions">{count > 0 && <button type="button" className="cart-clear" onClick={clearCart}>پاک کردن سبد</button>}<button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div></div>
+    <div className="drawer-heading"><div><h2>سبد خرید شما</h2><span>{fa(count)} کالا</span></div><div className="cart-heading-actions">{count > 0 && <button type="button" className="cart-clear" onClick={() => setConfirmClear(true)}>پاک کردن سبد</button>}<button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div></div>
+    {confirmClear && count > 0 && <div className="cart-clear-confirm" role="alert"><span>همه کالاها از سبد این مرورگر حذف شوند؟</span><div><button type="button" onClick={() => setConfirmClear(false)}>انصراف</button><button type="button" onClick={() => { clearCart(); setConfirmClear(false) }}>بله، پاک کردن سبد</button></div></div>}
     {unknown.length > 0 && <div className="cart-warning" role="status"><span>{fa(unknown.length)} کالا در کاتالوگ فعلی پیدا نشد و در جمع نمونه حساب نشده است.</span><button type="button" onClick={() => unknown.forEach(removeItem)}>حذف کالاهای نامشخص</button></div>}
+    {tooMany && <div className="cart-warning" role="status">در هر سفارش آزمایشی حداکثر {fa(MAX_ORDER_ITEMS)} نوع کالا می‌توان ثبت کرد؛ تعدادی را حذف یا برای بعد نگه دار.</div>}
     {cartItems.length ? <>
       <div className="cart-items">{cartItems.map((item) => {
         const issue = quantity.includes(item.id)
@@ -605,6 +644,7 @@ function CartModal({ cart, close, changeQuantity, removeItem, clearCart, go, ope
           <p><ShieldCheck size={14} /> اطلاعات کالا نمونه است</p><strong>{fa(item.price)} <small>تومان</small></strong>
           {issue && <p className="cart-item-warning">موجودی آزمایشی برای این تعداد کافی نیست؛ تعداد را کاهش بده یا کالا را حذف کن.</p>}
           <div className="cart-item-controls"><div className="quantity-control"><button type="button" aria-label={`افزایش تعداد ${item.title}`} disabled={cart[item.id] >= limit} onClick={() => changeQuantity(item.id, 1)}><Plus size={16} /></button><b>{fa(cart[item.id])}</b><button type="button" aria-label={`${cart[item.id] === 1 ? 'حذف' : 'کاهش تعداد'} ${item.title}`} onClick={() => changeQuantity(item.id, -1)}>{cart[item.id] === 1 ? <Trash2 size={15} /> : <Minus size={16} />}</button></div><button type="button" className="cart-remove-item" aria-label={`حذف کامل ${item.title} از سبد خرید`} onClick={() => removeItem(item.id)}><Trash2 size={15} /> حذف</button></div>
+          <button type="button" className="cart-save-later" aria-label={`نگه‌داشتن ${item.title} برای بعد`} onClick={() => saveForLater(item.id)}><Heart size={14} /> انتقال به علاقه‌مندی‌ها</button>
         </div></div>
       })}</div>
       <div className="cart-summary"><div><span>جمع سبد خرید ({fa(count)} کالا)</span><b>{fa(total + saving)} تومان</b></div><div className="cart-saving"><span>سود شما از خرید</span><b>{fa(saving)} تومان</b></div><div className="cart-total"><span>جمع نمونه</span><b>{fa(total)} <small>تومان</small></b></div>{hasIssues && <p className="cart-summary-warning">پیش از ادامه، موارد مشخص‌شده در سبد را بررسی کن.</p>}<button type="button" className="primary-button" disabled={hasIssues} onClick={openCheckout}>{STATIC_DEMO ? 'بررسی وضعیت سفارش' : 'ادامه فرایند خرید'} <ArrowLeft size={18} /></button><p>{STATIC_DEMO ? 'ثبت سفارش در این نسخه فعال نیست.' : 'ادامه خرید صرفاً آزمایشی است؛ پرداخت و ارسال واقعی ندارد.'}</p></div>
@@ -633,21 +673,13 @@ function InstallModal({ close, installPrompt, install, installed }) {
   </ModalShell>
 }
 
-function StaticLoginModal({ close }) {
-  return <ModalShell close={close} className="small-modal availability-modal" label="وضعیت ورود">
-    <button type="button" className="modal-close close-floating" onClick={close} aria-label="بستن"><X size={21} /></button>
-    <span className="availability-icon"><UserRound size={25} /></span>
-    <h2>ورود در نسخه نمایشی فعال نیست</h2>
-    <p>این نسخه به سرویس حساب کاربری یا پیامک متصل نیست؛ برای مرور کالاها نیازی به وارد کردن شماره موبایل ندارید.</p>
-    <button type="button" className="primary-button" onClick={close}>متوجه شدم</button>
-  </ModalShell>
-}
-
-function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogStatus, refreshCatalog, onSuccess }) {
+function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogStatus, refreshCatalog, onSuccess, openReceipts }) {
   const products = useContext(CatalogContext)
   const [customer, setCustomer] = useState({ name: '', phone: '', city, address: '' })
   const [error, setError] = useState('')
   const [receipt, setReceipt] = useState(null)
+  const [savedLocally, setSavedLocally] = useState(false)
+  const [cartClearedLocally, setCartClearedLocally] = useState(true)
   const submitting = useRef(false)
   const cartItems = products.filter((item) => cart[item.id] > 0)
   const count = cartItems.reduce((sum, item) => sum + cart[item.id], 0)
@@ -669,6 +701,7 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
     }
     const ids = Object.keys(cart).filter((id) => cart[id] > 0).sort()
     if (!ids.length || ids.length !== cartItems.length) { setError('سبد خرید را دوباره بررسی کنید.'); return }
+    if (ids.length > MAX_ORDER_ITEMS) { setError(`در هر سفارش آزمایشی حداکثر ${fa(MAX_ORDER_ITEMS)} نوع کالا مجاز است.`); return }
     const items = ids.map((id) => {
       const product = cartItems.find((item) => item.id === id)
       return { id, quantity: cart[id], expectedPrice: product.price }
@@ -700,8 +733,10 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
       }
       if (!result.order?.reference || result.order.status !== 'demo') throw new Error('پاسخ سرور معتبر نبود؛ دوباره تلاش کنید.')
       clearCheckoutKey()
+      const localResult = onSuccess(result.order)
+      setSavedLocally(localResult.receiptSaved)
+      setCartClearedLocally(localResult.cartCleared)
       setReceipt(result.order)
-      onSuccess()
       refreshCatalog()
     } catch (failure) {
       setError(failure.name === 'AbortError' ? 'پاسخ سرور دیر رسید؛ با همین اطلاعات دوباره تلاش کنید.' : failure instanceof TypeError ? 'ارتباط با سرور برقرار نشد؛ اتصال را بررسی و دوباره تلاش کنید.' : failure.message || 'ثبت سفارش آزمایشی ناموفق بود؛ دوباره تلاش کنید.')
@@ -720,6 +755,9 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
       <p>این سفارش فقط برای آزمایش فروشگاه است؛ هیچ پرداختی انجام نشده و کالایی ارسال نخواهد شد.</p>
       <div className="receipt-reference"><span>شماره سفارش آزمایشی</span><strong dir="ltr">{receipt.reference}</strong></div>
       <div className="receipt-details"><span>{fa(receipt.itemCount)} کالا</span><span>جمع نمونه: <b>{fa(receipt.total)} تومان</b></span></div>
+      <p className="receipt-storage-note">{savedLocally ? 'خلاصهٔ این رسید بدون اطلاعات تماس در همین مرورگر ذخیره شد.' : 'ذخیرهٔ رسید در مرورگر ممکن نبود؛ در صورت نیاز شمارهٔ آن را یادداشت کن.'}</p>
+      {!cartClearedLocally && <p className="receipt-storage-warning">سبد در این صفحه خالی شد، اما پاک‌سازی آن در حافظهٔ مرورگر ممکن نبود و ممکن است با بارگذاری دوباره بازگردد.</p>}
+      {savedLocally && <button type="button" className="personal-outline-button receipt-view-link" onClick={openReceipts}>مشاهده رسیدهای آزمایشی <ArrowLeft size={16} /></button>}
       <button type="button" className="primary-button" onClick={close}>بازگشت به فروشگاه <ArrowLeft size={18} /></button>
     </div>
   </ModalShell>
@@ -730,7 +768,7 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
     <div className="checkout-layout">
       <form id="checkout-form" className="checkout-form" onSubmit={submit} noValidate>
         <h2>اطلاعات گیرنده آزمایشی</h2>
-        <p className="checkout-disclaimer">این اطلاعات در پایگاه‌دادهٔ آزمایشی سرور ذخیره می‌شوند؛ لطفاً فقط اطلاعات ساختگی وارد کنید.</p>
+        <p className="checkout-disclaimer">این اطلاعات در پایگاه‌دادهٔ آزمایشی سرور ذخیره می‌شوند؛ فقط اطلاعات ساختگی وارد کنید. خلاصهٔ رسید بدون مشخصات تماس در این مرورگر نگهداری می‌شود.</p>
         <label htmlFor="checkout-name">نام و نام خانوادگی</label>
         <input id="checkout-name" value={customer.name} onChange={update('name')} placeholder="مثلاً مشتری آزمایشی" maxLength={80} autoComplete="off" disabled={busy} required />
         <div className="checkout-fields"><div><label htmlFor="checkout-phone">شماره موبایل آزمایشی</label><input id="checkout-phone" value={customer.phone} onChange={update('phone')} placeholder="۰۹۱۲۰۰۰۰۰۰۰" inputMode="tel" dir="ltr" maxLength={20} autoComplete="off" disabled={busy} required /></div><div><label htmlFor="checkout-city">شهر</label><input id="checkout-city" value={customer.city} onChange={update('city')} placeholder="شهر آزمایشی" maxLength={60} autoComplete="off" disabled={busy} required /></div></div>
@@ -752,27 +790,20 @@ function CheckoutModal({ cart, city, close, backToCart, busy, setBusy, catalogSt
   </ModalShell>
 }
 
-function LoginModal({ close, home }) {
-  const [phone, setPhone] = useState('')
-  const [error, setError] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  return <ModalShell close={close} className="small-modal" label="ورود یا ثبت‌نام"><button type="button" className="modal-close close-floating" onClick={close} aria-label="بستن"><X size={21} /></button><Logo onClick={() => { close(); home() }} /><h2>سلام، خوش اومدی!</h2><p>برای ورود یا ثبت‌نام، شماره موبایلت رو وارد کن.</p><form onSubmit={(event) => { event.preventDefault(); if (!/^09\d{9}$/.test(normalize(phone))) { setError('لطفاً یک شماره موبایل معتبر وارد کنید.'); setSubmitted(false); return } setError(''); setSubmitted(true) }}><label htmlFor="phone">شماره موبایل</label><input id="phone" value={phone} onChange={(event) => { setPhone(event.target.value); setError(''); setSubmitted(false) }} inputMode="numeric" autoComplete="tel" dir="ltr" placeholder="۰۹۱۲ ۱۲۳ ۴۵۶۷" />{error && <span className="form-error">{error}</span>}{submitted && <span className="form-notice">این نسخه نمایشی است و به سرویس ورود و پیامک متصل نیست.</span>}<button type="submit" className="primary-button">ادامه <ArrowLeft size={17} /></button></form><small>ورود شما به معنای پذیرش قوانین و حریم خصوصی دیجی‌کارن است.</small></ModalShell>
-}
-
 function LocationModal({ close, city, setCity }) {
   const [query, setQuery] = useState('')
   const cities = ['تهران', 'کرج', 'مشهد', 'اصفهان', 'شیراز', 'تبریز', 'قم', 'اهواز', 'رشت', 'یزد', 'کرمان', 'ارومیه']
-  return <ModalShell close={close} className="small-modal location-modal" label="انتخاب شهر"><div className="modal-heading"><strong>شهر خود را انتخاب کنید</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><p>{STATIC_DEMO ? 'شهر مورد نظرت را برای نمایش انتخاب کن؛ ارسال واقعی فعال نیست.' : 'برای دیدن شرایط ارسال، شهر مورد نظرت رو انتخاب کن.'}</p><div className="city-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی شهر" aria-label="جستجوی شهر" /></div><div className="city-list">{cities.filter((item) => normalize(item).includes(normalize(query))).map((item) => <button type="button" key={item} onClick={() => { setCity(item); close() }}><MapPin size={17} />{item}{city === item ? <Check size={17} /> : <ChevronLeft size={17} />}</button>)}{!cities.some((item) => normalize(item).includes(normalize(query))) && <p>شهری با این نام پیدا نشد.</p>}</div></ModalShell>
+  return <ModalShell close={close} className="small-modal location-modal" label="انتخاب شهر"><div className="modal-heading"><strong>شهر خود را انتخاب کنید</strong><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><p>شهر فقط برای نمایش در این مرورگر انتخاب می‌شود؛ ارسال واقعی فعال نیست.</p><div className="city-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جستجوی شهر" aria-label="جستجوی شهر" /></div><div className="city-list">{cities.filter((item) => normalize(item).includes(normalize(query))).map((item) => <button type="button" key={item} onClick={() => { setCity(item); close() }}><MapPin size={17} />{item}{city === item ? <Check size={17} /> : <ChevronLeft size={17} />}</button>)}{!cities.some((item) => normalize(item).includes(normalize(query))) && <p>شهری با این نام پیدا نشد.</p>}</div></ModalShell>
 }
 
-function Support({ open, setOpen }) {
+function Support({ open, setOpen, go }) {
   const [answer, setAnswer] = useState('')
   const faqs = [
     ['چطور سفارش ثبت کنم؟', STATIC_DEMO ? 'در نسخه گیت‌هاب پیجز ثبت سفارش، پرداخت و ارسال فعال نیستند. سبد فقط در همین مرورگر ذخیره می‌شود.' : 'کالاها را به سبد اضافه کن و مراحل سفارش آزمایشی را انجام بده. پرداخت و ارسال واقعی فعال نیستند.'],
-    ['شرایط ارسال چطوره؟', 'روش‌ها و هزینه ارسال پس از اتصال فروشگاه به سرویس واقعی مشخص می‌شوند.'],
-    ['چطور کالا رو برگردونم؟', 'شرایط بازگشت کالا پس از راه‌اندازی فروشگاه واقعی اعلام خواهد شد.'],
+    ['شرایط ارسال چطوره؟', 'در این نسخه هیچ ارسال واقعی یا هزینهٔ حملی وجود ندارد.'],
+    ['چطور کالا رو برگردونم؟', 'چون هیچ کالایی فروخته یا ارسال نمی‌شود، فرایند بازگشت کالا در این نمونه فعال نیست.'],
   ]
-  return <div className="support-widget">{open && <div className="support-panel"><div className="support-heading"><div><span><Headphones size={20} /></span><div><strong>پشتیبانی دیجی‌کارن</strong><small>همیشه در کنار شما</small></div></div><button type="button" onClick={() => setOpen(false)} aria-label="بستن پشتیبانی"><X size={19} /></button></div><div className="support-body"><h3>سلام، چه کمکی از دستمون برمیاد؟ 👋</h3><p>یکی از موضوعات زیر رو انتخاب کن.</p>{faqs.map(([question, response]) => <button type="button" key={question} onClick={() => setAnswer(answer === response ? '' : response)}>{question}<ChevronLeft size={16} /></button>)}{answer && <div className="support-answer">{answer}</div>}<small>این بخش در نسخه نمایشی به پشتیبان متصل نیست.</small></div></div>}<button type="button" className="support-button" onClick={() => setOpen(!open)} aria-label={open ? 'بستن پشتیبانی' : 'پشتیبانی'}>{open ? <X size={24} /> : <Headphones size={25} />}<i /></button></div>
+  return <div className="support-widget">{open && <div className="support-panel"><div className="support-heading"><div><span><Headphones size={20} /></span><div><strong>راهنمای دیجی‌کارن</strong><small>پاسخ‌های خودکار نسخه نمایشی</small></div></div><button type="button" onClick={() => setOpen(false)} aria-label="بستن راهنما"><X size={19} /></button></div><div className="support-body"><h3>سلام، چه کمکی از دستمون برمیاد؟ 👋</h3><p>یکی از موضوعات زیر رو انتخاب کن.</p>{faqs.map(([question, response]) => <button type="button" key={question} onClick={() => setAnswer(answer === response ? '' : response)}>{question}<ChevronLeft size={16} /></button>)}{answer && <div className="support-answer">{answer}</div>}<button type="button" className="support-more" onClick={() => { setOpen(false); go({ type: 'help', topic: 'start' }) }}>مشاهده مرکز راهنما <ArrowLeft size={15} /></button><small>این بخش به پشتیبان انسانی متصل نیست.</small></div></div>}<button type="button" className="support-button" onClick={() => setOpen(!open)} aria-label={open ? 'بستن راهنما' : 'راهنمای فروشگاه'} aria-expanded={open}>{open ? <X size={24} /> : <Headphones size={25} />}</button></div>
 }
 
 export default function App() {
@@ -784,10 +815,12 @@ export default function App() {
   const [favorites, setFavorites] = useStoredState('digikaren-favorites', [], (value) => cleanProductIds(value, 200))
   const [compareIds, setCompareIds] = useStoredState('digikaren-compare', [], cleanProductIds)
   const [recent, setRecent] = useStoredState('digikaren-recent', [], (value) => cleanProductIds(value, MAX_RECENT))
+  const [notes, setNotes] = useStoredState('digikaren-notes', {}, cleanNotes)
+  const [receipts, setReceipts] = useStoredState('digikaren-receipts', [], cleanReceipts)
   const [city, setCity] = useStoredState('digikaren-city', 'تهران', (value) => typeof value === 'string' && value.trim() && value.length <= 60 ? value : 'تهران')
   const [modal, setModal] = useState(null)
   const [supportOpen, setSupportOpen] = useState(false)
-  const [toast, setToast] = useState('')
+  const [toast, setToast] = useState(null)
   const [installPrompt, setInstallPrompt] = useState(null)
   const [appInstalled, setAppInstalled] = useState(() => window.matchMedia('(display-mode: standalone)').matches || Boolean(navigator.standalone))
   const toastTimer = useRef(null)
@@ -818,7 +851,8 @@ export default function App() {
   useEffect(() => { refreshCatalog() }, [refreshCatalog])
   useEffect(() => {
     const product = view.type === 'product' ? catalogProducts.find((item) => item.id === view.id) : null
-    document.title = view.type === 'product' ? `${product?.title || (catalogStatus === 'loading' ? 'کالا' : 'کالا پیدا نشد')} | دیجی‌کارن` : view.type === 'compare' ? 'مقایسه کالاها | دیجی‌کارن' : 'دیجی‌کارن | خرید خوب، حال خوب'
+    const titles = { compare: 'مقایسه کالاها', workspace: 'فضای خرید من', recent: 'بازدیدهای اخیر', notes: 'یادداشت‌های من', receipts: 'رسیدهای آزمایشی', help: 'مرکز راهنما' }
+    document.title = view.type === 'product' ? `${product?.title || (catalogStatus === 'loading' ? 'کالا' : 'کالا پیدا نشد')} | دیجی‌کارن` : titles[view.type] ? `${titles[view.type]} | دیجی‌کارن` : 'دیجی‌کارن | خرید خوب، حال خوب'
   }, [view.type, view.id, catalogProducts, catalogStatus])
   useEffect(() => {
     if (view.type !== 'product' || !catalogProducts.some((product) => product.id === view.id)) return
@@ -840,10 +874,10 @@ export default function App() {
     return () => { document.removeEventListener('keydown', onKey); document.body.classList.remove('modal-open') }
   }, [modal, checkoutBusy])
   useEffect(() => () => window.clearTimeout(toastTimer.current), [])
-  const notify = (message) => {
-    setToast(message)
+  const notify = (message, error = false) => {
+    setToast({ message, error })
     window.clearTimeout(toastTimer.current)
-    toastTimer.current = window.setTimeout(() => setToast(''), 3200)
+    toastTimer.current = window.setTimeout(() => setToast(null), 3200)
   }
   const go = (next, { scroll = true } = {}) => {
     const path = viewUrl(next, window.location.pathname)
@@ -875,7 +909,26 @@ export default function App() {
   }
   const onFavorite = (id) => { const already = favorites.includes(id); setFavorites((current) => already ? current.filter((item) => item !== id) : [...current, id]); notify(already ? 'از علاقه‌مندی‌ها حذف شد' : 'به علاقه‌مندی‌هات اضافه شد') }
   const removeCartItem = (id) => setCart((current) => { const next = { ...current }; delete next[id]; return next })
-  const clearCart = () => { setCart({}); notify('سبد خرید پاک شد') }
+  const clearCart = () => {
+    if (!removeBrowserValue('digikaren-cart')) { notify('پاک کردن سبد در حافظهٔ مرورگر ممکن نبود.', true); return }
+    setCart({}); notify('سبد خرید پاک شد')
+  }
+  const saveForLater = (id) => {
+    const nextFavorites = favorites.includes(id) ? favorites : [...favorites, id]
+    const nextCart = { ...cart }; delete nextCart[id]
+    if (!writeBrowserValue('digikaren-favorites', nextFavorites)) { notify('ذخیره در علاقه‌مندی‌های مرورگر ممکن نبود.', true); return }
+    setFavorites(nextFavorites)
+    const cartSaved = Object.keys(nextCart).length ? writeBrowserValue('digikaren-cart', nextCart) : removeBrowserValue('digikaren-cart')
+    if (!cartSaved) { notify('کالا ذخیره شد، اما حذف آن از سبد در مرورگر ممکن نبود.', true); return }
+    setCart(nextCart)
+    notify('کالا به علاقه‌مندی‌ها منتقل و تعداد آن از سبد حذف شد.')
+  }
+  const removeRecent = (id) => {
+    const next = recent.filter((item) => item !== id)
+    const saved = next.length ? writeBrowserValue('digikaren-recent', next) : removeBrowserValue('digikaren-recent')
+    if (!saved) { notify('حذف بازدید در حافظهٔ مرورگر ممکن نبود.', true); return }
+    setRecent(next); notify('کالا از بازدیدهای اخیر حذف شد')
+  }
   const validCompareIds = compareIds.filter((id) => catalogProducts.some((product) => product.id === id))
   const onCompare = (id) => {
     const result = toggleComparison(validCompareIds, id)
@@ -892,6 +945,54 @@ export default function App() {
   const rememberProduct = (id) => setRecent((current) => recordViewed(current, id))
   const openModal = (type, data) => setModal({ type, data })
   const closeModal = () => { if (!checkoutBusy) setModal(null) }
+  const requestConfirm = (title, message, onConfirm, isReset = false) => openModal('confirm', { title, message, onConfirm, isReset })
+  const requestClear = (key) => {
+    const groups = {
+      cart: { label: 'سبد خرید', value: {}, set: setCart, storage: 'digikaren-cart' },
+      favorites: { label: 'علاقه‌مندی‌ها', value: [], set: setFavorites, storage: 'digikaren-favorites' },
+      recent: { label: 'بازدیدهای اخیر', value: [], set: setRecent, storage: 'digikaren-recent' },
+      compare: { label: 'فهرست مقایسه', value: [], set: setCompareIds, storage: 'digikaren-compare' },
+      notes: { label: 'یادداشت‌های شخصی', value: {}, set: setNotes, storage: 'digikaren-notes' },
+      receipts: { label: 'رسیدهای آزمایشی', value: [], set: setReceipts, storage: 'digikaren-receipts' },
+      city: { label: 'شهر انتخاب‌شده', value: 'تهران', set: setCity, storage: 'digikaren-city' },
+    }
+    const group = groups[key]
+    if (!group) return
+    const message = key === 'receipts' ? 'فقط کپی رسیدها در این مرورگر پاک می‌شود؛ اطلاعات پایگاه‌دادهٔ سرور آزمایشی حذف نمی‌شود.' : key === 'city' ? 'شهر به مقدار پیش‌فرض تهران بازمی‌گردد. ارسال واقعی در این نسخه فعال نیست.' : `همهٔ ${group.label} از این مرورگر پاک می‌شوند.`
+    requestConfirm(`${key === 'city' ? 'بازنشانی' : 'پاک کردن'} ${group.label}`, message, () => {
+      if (!removeBrowserValue(group.storage)) { notify('تغییر در حافظهٔ مرورگر ممکن نبود.', true); return }
+      group.set(group.value)
+      notify(key === 'city' ? 'شهر به تهران بازنشانی شد' : `${group.label} پاک شد`)
+    }, key === 'city')
+  }
+  const saveNote = (id, text) => {
+    const result = putNote(notes, id, text)
+    if (result.result !== 'saved') return result.result
+    if (!writeBrowserValue('digikaren-notes', result.notes)) return 'unavailable'
+    setNotes(result.notes)
+    notify('یادداشت در این مرورگر ذخیره شد')
+    return 'saved'
+  }
+  const requestDeleteNote = (id) => requestConfirm('حذف یادداشت شخصی', 'این یادداشت فقط از همین مرورگر حذف می‌شود.', () => {
+    const next = { ...notes }; delete next[id]
+    const saved = Object.keys(next).length ? writeBrowserValue('digikaren-notes', next) : removeBrowserValue('digikaren-notes')
+    if (!saved) { notify('پاک کردن یادداشت در مرورگر ممکن نبود.', true); return }
+    setNotes(next); notify('یادداشت حذف شد')
+  })
+  const requestDeleteReceipt = (reference) => requestConfirm('حذف رسید آزمایشی', 'فقط کپی این رسید در مرورگر پاک می‌شود؛ رکورد سرور آزمایشی حذف نمی‌شود.', () => {
+    const next = receipts.filter((receipt) => receipt.reference !== reference)
+    const saved = next.length ? writeBrowserValue('digikaren-receipts', next) : removeBrowserValue('digikaren-receipts')
+    if (!saved) { notify('پاک کردن رسید در مرورگر ممکن نبود.', true); return }
+    setReceipts(next); notify('رسید از این مرورگر حذف شد')
+  })
+  const saveDemoReceipt = (order) => {
+    const cartCleared = removeBrowserValue('digikaren-cart')
+    setCart({})
+    const result = recordReceipt(receipts, order)
+    const receiptSaved = result.result === 'saved' && writeBrowserValue('digikaren-receipts', result.receipts)
+    if (receiptSaved) setReceipts(result.receipts)
+    return { receiptSaved, cartCleared }
+  }
   const installApp = async () => {
     if (!installPrompt) return
     try {
@@ -904,22 +1005,33 @@ export default function App() {
       notify('برای نصب، از گزینه افزودن به صفحه اصلی در منوی مرورگر استفاده کنید.')
     }
   }
-  const onNotice = () => notify('این بخش در نسخه نمایشی فعال نیست.')
-  const common = { favorites, onFavorite, onAdd, onOpen: (product) => { rememberProduct(product.id); openModal('product', product) }, go, recent, clearRecent: () => { setRecent([]); notify('تاریخچه بازدید پاک شد') } }
+  const common = { favorites, onFavorite, onAdd, onOpen: (product) => { rememberProduct(product.id); openModal('product', product) }, go, recent, clearRecent: () => requestClear('recent') }
   const cartCount = Object.values(cart).reduce((sum, count) => sum + (Number(count) || 0), 0)
+  let page
+  if (view.type === 'home') page = <HomePage {...common} />
+  else if (view.type === 'categories') page = <CategoryDirectory go={go} />
+  else if (view.type === 'workspace') page = <WorkspacePage products={catalogProducts} favorites={favorites} recent={recent} compareIds={compareIds} cart={cart} notes={notes} receipts={receipts} city={city} staticDemo={STATIC_DEMO} go={go} openCart={() => openModal('cart')} onRequestClear={requestClear} />
+  else if (view.type === 'recent') page = <RecentPage products={catalogProducts} recent={recent} go={go} onRemove={removeRecent} onClear={() => requestClear('recent')} renderProduct={(product) => <ProductCard product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={common.onOpen} go={go} />} />
+  else if (view.type === 'notes') page = <NotesPage products={catalogProducts} notes={notes} go={go} onDelete={requestDeleteNote} onClear={() => requestClear('notes')} />
+  else if (view.type === 'receipts') page = <ReceiptsPage products={catalogProducts} receipts={receipts} staticDemo={STATIC_DEMO} go={go} onDelete={requestDeleteReceipt} onClear={() => requestClear('receipts')} />
+  else if (view.type === 'help') page = <HelpPage topic={view.topic} go={go} staticDemo={STATIC_DEMO} />
+  else if (view.type === 'compare') page = <ComparePage ids={view.ids} products={catalogProducts} catalogStatus={catalogStatus} cart={cart} onAdd={onAdd} onRemove={removeCompare} onAddMore={addMoreCompare} go={go} notify={notify} />
+  else if (view.type === 'product') page = <ProductPage key={view.id} id={view.id} section={view.section} catalogStatus={catalogStatus} cart={cart} notes={notes} onSaveNote={saveNote} onDeleteNote={requestDeleteNote} {...common} openImage={(product) => openModal('product-image', product)} openCart={() => openModal('cart')} notify={notify} />
+  else page = <Catalog key={`${view.type}-${view.id || view.query || ''}-${view.sub || ''}`} view={view} catalogStatus={catalogStatus} {...common} />
+
   return <CatalogContext.Provider value={catalogProducts}><CompareProvider value={{ ids: validCompareIds, toggle: onCompare }}>
-    <Header view={view} go={go} cartCount={cartCount} favorites={favorites} city={city} openModal={openModal} onSupport={() => setSupportOpen(true)} />
+    <Header view={view} go={go} cartCount={cartCount} favorites={favorites} city={city} openModal={openModal} />
     <AppNotice openInstall={() => openModal('install')} />
-    {view.type === 'home' ? <HomePage {...common} onNotice={onNotice} /> : view.type === 'categories' ? <CategoryDirectory go={go} /> : view.type === 'compare' ? <ComparePage ids={view.ids} products={catalogProducts} catalogStatus={catalogStatus} cart={cart} onAdd={onAdd} onRemove={removeCompare} onAddMore={addMoreCompare} go={go} notify={notify} /> : view.type === 'product' ? <ProductPage key={view.id} id={view.id} catalogStatus={catalogStatus} cart={cart} {...common} openImage={(product) => openModal('product-image', product)} openCart={() => openModal('cart')} notify={notify} /> : <Catalog key={`${view.type}-${view.id || view.query || ''}-${view.sub || ''}`} view={view} catalogStatus={catalogStatus} {...common} />}
-    <Footer go={go} onNotice={onNotice} notify={notify} />
-    <Support open={supportOpen} setOpen={setSupportOpen} />
+    {page}
+    <Footer go={go} />
+    <Support open={supportOpen} setOpen={setSupportOpen} go={go} />
     <CompareDock ids={validCompareIds} products={catalogProducts} go={go} clear={() => { setCompareIds([]); notify('فهرست مقایسه پاک شد') }} active={view.type === 'compare'} />
-    {toast && <div className="toast" role="status"><CheckCircle2 size={19} />{toast}</div>}
+    {toast && <div className={`toast${toast.error ? ' toast-error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <Info size={19} /> : <CheckCircle2 size={19} />}{toast.message}</div>}
+    {modal?.type === 'confirm' && <ConfirmModal close={closeModal} {...modal.data} />}
     {modal?.type === 'product' && <ProductModal product={catalogProducts.find((product) => product.id === modal.data.id) || modal.data} close={closeModal} onAdd={onAdd} isFavorite={favorites.includes(modal.data.id)} onFavorite={onFavorite} openCart={() => openModal('cart')} go={go} />}
     {modal?.type === 'product-image' && <ProductImageModal product={modal.data} close={closeModal} />}
-    {modal?.type === 'cart' && <CartModal cart={cart} close={closeModal} changeQuantity={changeQuantity} removeItem={removeCartItem} clearCart={clearCart} go={go} openCheckout={() => openModal('checkout')} />}
-    {modal?.type === 'checkout' && (STATIC_DEMO ? <StaticCheckoutModal close={closeModal} backToCart={() => openModal('cart')} /> : <CheckoutModal cart={cart} city={city} close={closeModal} backToCart={() => openModal('cart')} busy={checkoutBusy} setBusy={setCheckoutBusy} catalogStatus={catalogStatus} refreshCatalog={refreshCatalog} onSuccess={() => setCart({})} />)}
-    {modal?.type === 'login' && (STATIC_DEMO ? <StaticLoginModal close={closeModal} /> : <LoginModal close={closeModal} home={() => go({ type: 'home' })} />)}
+    {modal?.type === 'cart' && <CartModal cart={cart} close={closeModal} changeQuantity={changeQuantity} removeItem={removeCartItem} clearCart={clearCart} saveForLater={saveForLater} go={go} openCheckout={() => openModal('checkout')} />}
+    {modal?.type === 'checkout' && (STATIC_DEMO ? <StaticCheckoutModal close={closeModal} backToCart={() => openModal('cart')} /> : <CheckoutModal cart={cart} city={city} close={closeModal} backToCart={() => openModal('cart')} busy={checkoutBusy} setBusy={setCheckoutBusy} catalogStatus={catalogStatus} refreshCatalog={refreshCatalog} onSuccess={saveDemoReceipt} openReceipts={() => { setModal(null); go({ type: 'receipts' }) }} />)}
     {modal?.type === 'install' && <InstallModal close={closeModal} installPrompt={installPrompt} install={installApp} installed={appInstalled} />}
     {modal?.type === 'location' && <LocationModal close={closeModal} city={city} setCity={setCity} />}
   </CompareProvider></CatalogContext.Provider>

@@ -7,6 +7,7 @@ import { createServer } from 'node:http'
 import { DatabaseSync } from 'node:sqlite'
 import { categories, products as seedProducts } from '../src/data.js'
 import { createStore } from '../server/database.js'
+import { MAX_ORDER_ITEMS } from '../src/cart-limits.js'
 import { createApiApp } from '../server/api.js'
 
 const customer = { name: 'مشتری آزمایشی', phone: '۰۹۱۲۱۲۳۴۵۶۷', city: 'تهران', address: 'نشانی ساختگی برای آزمایش فروشگاه' }
@@ -142,6 +143,18 @@ test('server rejects manipulated price, invalid quantities and stale inventory w
     assert.throws(() => store.placeDemoOrder(both, key), { code: 'OUT_OF_STOCK', status: 409 })
     assert.equal(store.getCatalog().find((item) => item.id === two.id).stock, 20)
     assert.equal(store.listDemoOrders().length, 2)
+  } finally { store.close() }
+})
+
+test('demo order line limit is enforced without changing inventory for rejected orders', () => {
+  const store = createStore()
+  try {
+    const products = store.getCatalog().slice(0, MAX_ORDER_ITEMS + 1)
+    const items = products.map((product) => ({ id: product.id, quantity: 1, expectedPrice: product.price }))
+    assert.throws(() => store.placeDemoOrder({ customer, items }, key), { code: 'INVALID_ORDER' })
+    assert.ok(store.getCatalog().slice(0, MAX_ORDER_ITEMS + 1).every((product) => product.stock === 20))
+    const order = store.placeDemoOrder({ customer, items: items.slice(0, MAX_ORDER_ITEMS) }, key)
+    assert.equal(order.order.items.length, MAX_ORDER_ITEMS)
   } finally { store.close() }
 })
 

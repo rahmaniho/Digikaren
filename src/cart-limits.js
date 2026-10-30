@@ -1,5 +1,6 @@
 // Shared by the demo checkout API and storefront quantity controls.
 export const MAX_QUANTITY = 10
+export const MAX_ORDER_ITEMS = 30
 
 export function productQuantityLimit(product) {
   if (!product) return 0
