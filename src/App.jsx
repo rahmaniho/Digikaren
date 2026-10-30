@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, ArrowUp, BadgePercent, Baby, BedDouble, BookOpen, BriefcaseBusiness,
-  Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CookingPot,
+  Check, CheckCircle2, ChevronDown, Clock3, ChevronLeft, ChevronRight, CookingPot,
   CreditCard, Download, Dumbbell, Eye, Flame, Flower2, Gamepad2, Gift, Grid2X2, Headphones, Heart, HeartPulse, Info,
   Home, LampDesk, Laptop, MapPin, Minus, Monitor, Music2, Palette, PartyPopper, PawPrint, Plus, Search, ShieldCheck, Shirt, SprayCan,
   ShoppingBag, ShoppingBasket, ShoppingCart, SlidersHorizontal, Smartphone,
@@ -13,6 +13,11 @@ import { followProductLink, viewFromSearch, viewUrl } from './navigation'
 import { relatedProducts } from './recommendations'
 import { productQuantityLimit, quantityAvailableToAdd } from './cart-limits'
 import { assetUrl } from './assets'
+import { filterCatalog, matchesProduct, normalizeText } from './discovery'
+import { cleanProductIds, MAX_COMPARE, MAX_RECENT, recordViewed, toggleComparison } from './comparison'
+import { cartIssues, cleanCart } from './cart'
+import { CatalogFilters } from './CatalogFilters'
+import { CompareDock, ComparePage, CompareProvider, CompareToggle } from './Compare'
 
 const STATIC_DEMO = import.meta.env.MODE === 'pages'
 const fa = (number) => new Intl.NumberFormat('fa-IR').format(number)
@@ -26,31 +31,15 @@ const iconMap = {
 }
 const newCategoryIds = ['bed-bath', 'lighting', 'office', 'party', 'cleaning', 'computer', 'pets', 'garden', 'music', 'handmade']
 
-function normalize(value = '') {
-  const digits = '۰۱۲۳۴۵۶۷۸۹'
-  const arabicDigits = '٠١٢٣٤٥٦٧٨٩'
-  return String(value).toLowerCase().replace(/[۰-۹٠-٩]/g, (char) => {
-    const i = digits.indexOf(char)
-    return String(i >= 0 ? i : arabicDigits.indexOf(char))
-  }).replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[‌\s]+/g, ' ').trim()
-}
-
-function searchableProduct(product) {
-  const labels = product.categories.flatMap((id) => {
-    const category = categories.find((item) => item.id === id)
-    const ids = product.subcategories?.[id] || []
-    return [category?.label || '', ...(category?.sub.filter((item) => ids.includes(item.id)).map((item) => item.label) || [])]
-  })
-  return normalize([product.title, ...(product.features || []), ...labels].join(' '))
-}
+const normalize = normalizeText
 
 const readView = () => viewFromSearch(window.location.search)
 
-function useStoredState(key, initialValue) {
+function useStoredState(key, initialValue, sanitize = (value) => value) {
   const [value, setValue] = useState(() => {
     try {
       const stored = localStorage.getItem(key)
-      return stored ? JSON.parse(stored) : initialValue
+      return stored ? sanitize(JSON.parse(stored)) : initialValue
     } catch {
       return initialValue
     }
@@ -88,7 +77,7 @@ function Header({ view, go, cartCount, favorites, city, openModal, onSupport }) 
     document.addEventListener('pointerdown', handlePointer)
     return () => document.removeEventListener('pointerdown', handlePointer)
   }, [])
-  const matches = products.filter((product) => searchableProduct(product).includes(normalize(searchValue))).slice(0, 4)
+  const matches = products.filter((product) => matchesProduct(product, searchValue, categories)).slice(0, 4)
   const searchFor = (value) => {
     const query = value.trim()
     if (!query) return
@@ -223,6 +212,7 @@ function ProductCard({ product, isFavorite, onFavorite, onAdd, onOpen, go, deal 
     <a className="product-card-link" href={viewUrl({ type: 'product', id: product.id })} aria-label={`صفحه کالا: ${product.title}`} onClick={(event) => followProductLink(event, product.id, go)} />
     <div className="product-card-top"><span><Zap size={13} fill="currentColor" /> {product.badge === 'ارسال سریع' ? 'کالای نمونه' : product.badge}</span><div className="product-card-actions">
       <button type="button" className="quick-view-button" aria-label={`نمایش سریع: ${product.title}`} title="نمایش سریع" onClick={() => onOpen(product)}><Eye size={17} /></button>
+      <CompareToggle product={product} />
       <button type="button" className={`favorite-button ${isFavorite ? 'is-favorite' : ''}`} aria-label={`${isFavorite ? 'حذف از' : 'افزودن به'} علاقه‌مندی‌ها: ${product.title}`} onClick={() => onFavorite(product.id)}><Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} /></button>
     </div></div>
     <div className="product-image"><img src={assetUrl(product.image)} alt={product.title} loading="lazy" /><button type="button" className="add-mini" disabled={soldOut} aria-label={`${soldOut ? 'ناموجود' : 'افزودن به سبد خرید'}: ${product.title}`} onClick={() => onAdd(product.id)}><Plus size={17} /></button></div>
@@ -353,18 +343,33 @@ function NewArrivals({ favorites, onFavorite, onAdd, onOpen, go }) {
   </section>
 }
 
-function HomePage(props) {
-  return <main className="container-wide home-main"><Hero go={props.go} /><QuickLinks go={props.go} onNotice={props.onNotice} /><Deals {...props} /><SupermarketBanner go={props.go} /><CategorySection go={props.go} /><PromoCards go={props.go} /><NewArrivals {...props} /><BestSelling {...props} /><Discover go={props.go} /></main>
+function RecentlyViewed({ recent, clearRecent, favorites, onFavorite, onAdd, onOpen, go }) {
+  const products = useContext(CatalogContext)
+  const selected = recent.map((id) => products.find((item) => item.id === id)).filter(Boolean).slice(0, 6)
+  if (!selected.length) return null
+  return <section className="best-section recent-section section-space" aria-labelledby="recent-heading">
+    <div className="section-heading inline"><div><span className="heading-eyebrow">برای ادامه جست‌وجوی تو</span><h2 id="recent-heading"><Clock3 size={22} /> بازدیدهای اخیر</h2><p>فقط در این مرورگر ذخیره می‌شود.</p></div><button type="button" className="section-link" onClick={clearRecent}><Trash2 size={15} /> پاک کردن تاریخچه</button></div>
+    <div className="best-grid">{selected.map((product) => <ProductCard key={product.id} product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div>
+  </section>
 }
 
-function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen }) {
+function HomePage(props) {
+  return <main className="container-wide home-main"><Hero go={props.go} /><QuickLinks go={props.go} onNotice={props.onNotice} /><Deals {...props} /><SupermarketBanner go={props.go} /><CategorySection go={props.go} /><PromoCards go={props.go} /><NewArrivals {...props} /><RecentlyViewed {...props} /><BestSelling {...props} /><Discover go={props.go} /></main>
+}
+
+function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen, catalogStatus }) {
   const products = useContext(CatalogContext)
-  const [sort, setSort] = useState(view.sort || 'suggested')
-  const [discountOnly, setDiscountOnly] = useState(false)
-  const [availableOnly, setAvailableOnly] = useState(false)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const subNavRef = useRef(null)
   const categoryFilterRef = useRef(null)
-  useEffect(() => { setSort(view.sort || 'suggested'); setDiscountOnly(false); setAvailableOnly(false) }, [view])
+  const inventoryKnown = catalogStatus === 'ready'
+  useEffect(() => {
+    if (!mobileFiltersOpen) return undefined
+    const onKey = (event) => { if (event.key === 'Escape') setMobileFiltersOpen(false) }
+    document.addEventListener('keydown', onKey)
+    document.body.classList.add('modal-open')
+    return () => { document.removeEventListener('keydown', onKey); document.body.classList.remove('modal-open') }
+  }, [mobileFiltersOpen])
   useEffect(() => {
     let cancelled = false
     const revealActive = () => {
@@ -396,44 +401,46 @@ function Catalog({ view, go, favorites, onFavorite, onAdd, onOpen }) {
     window.addEventListener('resize', revealActive)
     return () => window.removeEventListener('resize', revealActive)
   }, [view.id, view.sub])
+  const update = (patch) => {
+    const next = { ...view, ...patch }
+    Object.keys(next).forEach((key) => { if (next[key] === undefined) delete next[key] })
+    go(next, { scroll: false })
+  }
+  const clearFilters = () => update({ min: undefined, max: undefined, discount: undefined, available: undefined })
   const category = categories.find((item) => item.id === view.id)
   const subcategory = category?.sub.find((item) => item.id === view.sub)
-  const invalidCategory = view.type === 'category' && (!category || Boolean(view.sub && !subcategory))
+  const { products: result, invalidCategory } = useMemo(() => filterCatalog(products, { view, favorites, categories, inventoryKnown }), [products, view, favorites, inventoryKnown])
   let title = 'همه کالاها'
   if (view.type === 'deals') title = 'پیشنهادهای شگفت‌انگیز'
   if (view.type === 'category') title = invalidCategory ? 'دسته‌بندی پیدا نشد' : subcategory?.label || category.label
   if (view.type === 'favorites') title = 'علاقه‌مندی‌های من'
   if (view.type === 'search') title = `نتایج جستجو برای «${view.query}»`
-  const result = useMemo(() => {
-    let list = products.filter((product) => {
-      if (invalidCategory) return false
-      if (view.type === 'category' && !product.categories.includes(view.id)) return false
-      if (view.type === 'category' && view.sub && !product.subcategories?.[view.id]?.includes(view.sub)) return false
-      if (view.type === 'favorites' && !favorites.includes(product.id)) return false
-      if (view.type === 'deals' && !product.discount) return false
-      if (view.type === 'search' && !searchableProduct(product).includes(normalize(view.query))) return false
-      if (discountOnly && !product.discount) return false
-      if (availableOnly && product.stock === 0) return false
-      return true
-    })
-    if (sort === 'cheapest') list = [...list].sort((a, b) => a.price - b.price)
-    if (sort === 'expensive') list = [...list].sort((a, b) => b.price - a.price)
-    if (sort === 'popular') list = [...list].sort((a, b) => (b.sold || 0) - (a.sold || 0))
-    if (sort === 'newest') list = [...list].reverse()
-    return list
-  }, [view, favorites, sort, discountOnly, availableOnly, products, invalidCategory])
+  const hasPrice = view.min != null || view.max != null
+  const activeCount = Number(hasPrice) + Number(Boolean(view.discount)) + Number(Boolean(view.available))
+  const filterProps = { view, categories, go, update, inventoryKnown }
   return <main className="container-wide catalog-main">
     <div className="breadcrumbs"><button type="button" onClick={() => go({ type: 'home' })}>دیجی‌کارن</button><ChevronLeft size={14} />{category && subcategory && <><button type="button" onClick={() => go({ type: 'category', id: category.id })}>{category.label}</button><ChevronLeft size={14} /></>}<span>{title}</span></div>
-    <div className="catalog-title"><div><span className="heading-eyebrow">یه انتخاب خوب، یه حس خوب</span><h1>{title}</h1><p>{fa(result.length)} کالای نمونه برای شما</p></div><button type="button" className="back-home" onClick={() => go({ type: 'home' })}><ArrowRight size={17} /> بازگشت به خانه</button></div>
+    <div className="catalog-title"><div><span className="heading-eyebrow">یه انتخاب خوب، یه حس خوب</span><h1>{title}</h1><p aria-live="polite">{fa(result.length)} کالای نمونه برای شما</p></div><button type="button" className="back-home" onClick={() => go({ type: 'home' })}><ArrowRight size={17} /> بازگشت به خانه</button></div>
     {category && !invalidCategory && <nav className="subcategory-nav" ref={subNavRef} aria-label={`زیردسته‌های ${category.label}`}>
       <button type="button" className={!view.sub ? 'active' : ''} aria-pressed={!view.sub} onClick={() => go({ type: 'category', id: category.id })}>همه {category.label}<small>{fa(products.filter((product) => product.categories.includes(category.id)).length)}</small></button>
       {category.sub.map((item) => <button type="button" key={item.id} className={view.sub === item.id ? 'active' : ''} aria-pressed={view.sub === item.id} onClick={() => go({ type: 'category', id: category.id, sub: item.id })}>{item.label}<small>{fa(products.filter((product) => product.subcategories?.[category.id]?.includes(item.id)).length)}</small></button>)}
     </nav>}
-    <div className="catalog-layout"><aside className="filter-panel"><div className="filter-heading"><SlidersHorizontal size={19} /><strong>فیلترها</strong><button type="button" onClick={() => { setDiscountOnly(false); setAvailableOnly(false) }}>حذف فیلترها</button></div><div className="filter-group"><h3>دسته‌بندی کالاها</h3><div className="filter-category-list" ref={categoryFilterRef}>{categories.map((item) => <button type="button" className={view.type === 'category' && view.id === item.id ? 'active' : ''} key={item.id} onClick={() => go({ type: 'category', id: item.id })}>{item.label}<ChevronLeft size={14} /></button>)}</div></div><label className="filter-toggle"><span>فقط کالاهای تخفیف‌دار</span><input type="checkbox" checked={discountOnly} onChange={(event) => setDiscountOnly(event.target.checked)} /><i /></label>{!STATIC_DEMO && <label className="filter-toggle available-toggle"><span>فقط کالاهای موجود</span><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /><i /></label>}<div className="filter-note"><ShieldCheck size={21} /><span>خریدی مطمئن با<br /><b>دیجی‌کارن</b></span></div></aside>
-      <div className="catalog-content">{!STATIC_DEMO && <div className="mobile-catalog-filters"><label><input type="checkbox" checked={availableOnly} onChange={(event) => setAvailableOnly(event.target.checked)} /> فقط کالاهای موجود</label></div>}<div className="sort-bar"><span><SlidersHorizontal size={17} /> مرتب‌سازی:</span>{[['suggested', 'پیشنهادی'], ['newest', 'جدیدترین'], ['popular', 'پرفروش‌ترین'], ['cheapest', 'ارزان‌ترین'], ['expensive', 'گران‌ترین']].map(([id, label]) => <button type="button" key={id} className={sort === id ? 'active' : ''} aria-pressed={sort === id} onClick={() => setSort(id)}>{label}</button>)}<small>{fa(result.length)} کالا</small></div>
-        {result.length ? <div className="catalog-grid">{result.map((product) => <ProductCard key={product.id} product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div> : <div className="empty-results"><span><Search size={35} /></span><h2>{invalidCategory ? 'این دسته‌بندی وجود ندارد.' : view.type === 'favorites' ? 'هنوز چیزی به علاقه‌مندی‌هات اضافه نکردی!' : 'چیزی پیدا نکردیم!'}</h2><p>{view.type === 'favorites' ? 'با زدن قلب کنار هر کالا، می‌تونی بعداً راحت پیداش کنی.' : 'عبارت دیگری را جستجو کن یا از میان دسته‌بندی‌ها انتخاب کن.'}</p><button type="button" className="primary-button" onClick={() => go({ type: 'all' })}>مشاهده همه کالاها <ArrowLeft size={17} /></button></div>}
+    <div className="catalog-layout">
+      <aside className="filter-panel" aria-label="فیلتر کالاها"><CatalogFilters {...filterProps} categoryRef={categoryFilterRef} /></aside>
+      <div className="catalog-content">
+        <div className="mobile-catalog-filters"><button type="button" onClick={() => setMobileFiltersOpen(true)}><SlidersHorizontal size={16} /> فیلتر و محدوده قیمت {activeCount > 0 && <b>{fa(activeCount)}</b>}</button></div>
+        <div className="sort-bar"><span><SlidersHorizontal size={17} /> مرتب‌سازی:</span>{[['suggested', 'پیشنهادی'], ['newest', 'جدیدترین'], ['popular', 'پرفروش‌ترین'], ['cheapest', 'ارزان‌ترین'], ['expensive', 'گران‌ترین']].map(([id, label]) => <button type="button" key={id} className={(view.sort || 'suggested') === id ? 'active' : ''} aria-pressed={(view.sort || 'suggested') === id} onClick={() => update({ sort: id === 'suggested' ? undefined : id })}>{label}</button>)}<small>{fa(result.length)} کالا</small></div>
+        {activeCount > 0 && <div className="active-filters" aria-label="فیلترهای فعال">
+          {hasPrice && <button type="button" onClick={() => update({ min: undefined, max: undefined })}>قیمت: {view.min != null ? fa(view.min) : '۰'} تا {view.max != null ? fa(view.max) : 'بدون سقف'} تومان <X size={14} /></button>}
+          {view.discount && <button type="button" onClick={() => update({ discount: undefined })}>{view.discount === true ? 'تخفیف‌دار' : `تخفیف ${fa(view.discount)}٪ و بیشتر`} <X size={14} /></button>}
+          {view.available && <button type="button" onClick={() => update({ available: undefined })}>موجودی آزمایشی <X size={14} /></button>}
+          <button type="button" className="clear-active-filters" onClick={clearFilters}>پاک کردن همه</button>
+        </div>}
+        {!inventoryKnown && view.available && <p className="filter-inventory-note">فیلتر موجودی تا اتصال به سرور موجودی آزمایشی اعمال نمی‌شود.</p>}
+        {result.length ? <div className="catalog-grid">{result.map((product) => <ProductCard key={product.id} product={product} isFavorite={favorites.includes(product.id)} onFavorite={onFavorite} onAdd={onAdd} onOpen={onOpen} go={go} />)}</div> : <div className="empty-results"><span><Search size={35} /></span><h2>{invalidCategory ? 'این دسته‌بندی وجود ندارد.' : activeCount ? 'کالایی با این فیلترها پیدا نشد.' : view.type === 'favorites' ? 'هنوز چیزی به علاقه‌مندی‌هات اضافه نکردی!' : 'چیزی پیدا نکردیم!'}</h2><p>{activeCount ? 'محدوده قیمت یا فیلترها را تغییر بده و دوباره امتحان کن.' : view.type === 'favorites' ? 'با زدن قلب کنار هر کالا، می‌تونی بعداً راحت پیداش کنی.' : 'عبارت دیگری را جستجو کن یا از میان دسته‌بندی‌ها انتخاب کن.'}</p>{activeCount && !invalidCategory ? <button type="button" className="primary-button" onClick={clearFilters}>پاک کردن فیلترها</button> : <button type="button" className="primary-button" onClick={() => go({ type: 'all' })}>مشاهده همه کالاها <ArrowLeft size={17} /></button>}</div>}
       </div>
     </div>
+    {mobileFiltersOpen && <ModalShell close={() => setMobileFiltersOpen(false)} className="filter-modal" label="فیلتر کالاها"><div className="filter-modal-heading"><strong>فیلتر کالاها</strong><button type="button" className="modal-close" onClick={() => setMobileFiltersOpen(false)} aria-label="بستن"><X size={21} /></button></div><div className="filter-modal-content"><CatalogFilters {...filterProps} formId="mobile-price-filter" close={() => setMobileFiltersOpen(false)} /></div><button type="submit" form="mobile-price-filter" className="primary-button filter-modal-done">نمایش نتایج</button></ModalShell>}
   </main>
 }
 
@@ -479,6 +486,7 @@ function ProductPage({ id, catalogStatus, cart, favorites, onFavorite, onAdd, on
       <div className="product-page-gallery">
         <div className="product-gallery-actions">
           <button type="button" className={favorites.includes(product.id) ? 'is-favorite' : ''} aria-label={favorites.includes(product.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'} onClick={() => onFavorite(product.id)}><Heart size={20} fill={favorites.includes(product.id) ? 'currentColor' : 'none'} /></button>
+          <CompareToggle product={product} />
           <button type="button" aria-label="کپی پیوند کالا" onClick={copyLink}><Share2 size={19} /></button>
         </div>
         <button type="button" className="product-image-trigger" onClick={() => openImage(product)} aria-label="نمایش بزرگ‌تر تصویر کالا"><img src={assetUrl(product.image)} alt={product.title} /><span><ZoomIn size={15} /> بزرگ‌نمایی تصویر</span></button>
@@ -577,14 +585,30 @@ function ProductModal({ product, close, onAdd, isFavorite, onFavorite, openCart,
   return <ModalShell close={close} className="product-modal" label={`جزئیات ${product.title}`}><div className="modal-heading"><span>جزئیات کالا</span><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div><div className="product-detail"><div className="detail-image"><img src={assetUrl(product.image)} alt={product.title} /><button type="button" className={`detail-heart ${isFavorite ? 'is-favorite' : ''}`} onClick={() => onFavorite(product.id)} aria-label={isFavorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}><Heart size={21} fill={isFavorite ? 'currentColor' : 'none'} /></button></div><div className="detail-info"><span className="detail-tag"><Sparkles size={14} /> انتخاب دیجی‌کارن</span><h2>{product.title}</h2><div className="detail-rating"><Star size={16} fill="currentColor" /> {product.rating} <span>({fa(product.reviews)} دیدگاه نمونه)</span></div><div className="detail-features"><strong>ویژگی‌های کالا</strong>{product.features.map((feature) => <span key={feature}><Check size={15} /> {feature}</span>)}</div><div className="detail-guarantee"><ShieldCheck size={19} /> اطلاعات و شرایط خرید نمونه هستند</div>{product.stock != null && <div className="detail-stock">{product.stock > 0 ? `${fa(product.stock)} عدد موجودی آزمایشی` : 'این کالا در موجودی آزمایشی ناموجود است'}</div>}<div className="detail-purchase"><Price product={product} /><button type="button" className="primary-button" disabled={product.stock === 0} onClick={() => { if (onAdd(product.id)) setAdded(true) }}><ShoppingCart size={19} /> {product.stock === 0 ? 'ناموجود' : 'افزودن به سبد خرید'}</button>{added && <button type="button" className="detail-view-cart" onClick={openCart}>مشاهده سبد خرید <ChevronLeft size={15} /></button>}</div></div></div><div className="quick-view-footer"><a href={viewUrl({ type: 'product', id: product.id })} onClick={(event) => followProductLink(event, product.id, (next) => { close(); go(next) })}>مشاهده صفحه کامل کالا <ArrowLeft size={15} /></a><p className="modal-disclaimer">اطلاعات، قیمت و موجودی این کالا در نسخه نمایشی نمونه هستند.</p></div></ModalShell>
 }
 
-function CartModal({ cart, close, changeQuantity, go, openCheckout }) {
+function CartModal({ cart, close, changeQuantity, removeItem, clearCart, go, openCheckout }) {
   const products = useContext(CatalogContext)
   const cartItems = products.filter((item) => cart[item.id] > 0)
-  const count = cartItems.reduce((sum, item) => sum + cart[item.id], 0)
+  const { unknown, quantity } = cartIssues(cart, products)
+  const count = Object.values(cart).reduce((sum, value) => sum + value, 0)
   const total = cartItems.reduce((sum, item) => sum + item.price * cart[item.id], 0)
   const saving = cartItems.reduce((sum, item) => sum + (item.oldPrice - item.price) * cart[item.id], 0)
-  return <ModalShell close={close} className="cart-modal" label="سبد خرید"><div className="drawer-heading"><div><h2>سبد خرید شما</h2><span>{fa(count)} کالا</span></div><button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div>
-    {cartItems.length ? <><div className="cart-items">{cartItems.map((item) => <div className="cart-item" key={item.id}><img src={assetUrl(item.image)} alt="" /><div className="cart-item-info"><h3><a href={viewUrl({ type: 'product', id: item.id })} onClick={(event) => followProductLink(event, item.id, (next) => { close(); go(next) })}>{item.title}</a></h3><p><ShieldCheck size={14} /> اطلاعات کالا نمونه است</p><strong>{fa(item.price)} <small>تومان</small></strong><div className="quantity-control"><button type="button" aria-label={`افزایش تعداد ${item.title}`} onClick={() => changeQuantity(item.id, 1)}><Plus size={16} /></button><b>{fa(cart[item.id])}</b><button type="button" aria-label={`${cart[item.id] === 1 ? 'حذف' : 'کاهش تعداد'} ${item.title}`} onClick={() => changeQuantity(item.id, -1)}>{cart[item.id] === 1 ? <Trash2 size={15} /> : <Minus size={16} />}</button></div></div></div>)}</div><div className="cart-summary"><div><span>جمع سبد خرید ({fa(count)} کالا)</span><b>{fa(total + saving)} تومان</b></div><div className="cart-saving"><span>سود شما از خرید</span><b>{fa(saving)} تومان</b></div><div className="cart-total"><span>جمع نمونه</span><b>{fa(total)} <small>تومان</small></b></div><button type="button" className="primary-button" onClick={openCheckout}>{STATIC_DEMO ? 'بررسی وضعیت سفارش' : 'ادامه فرایند خرید'} <ArrowLeft size={18} /></button><p>{STATIC_DEMO ? 'ثبت سفارش در این نسخه فعال نیست.' : 'ادامه خرید صرفاً آزمایشی است؛ پرداخت و ارسال واقعی ندارد.'}</p></div></> : <div className="empty-cart"><span><ShoppingBag size={48} strokeWidth={1.3} /></span><h3>سبد خریدت هنوز خالیه!</h3><p>کلی کالای جذاب منتظرت هستن.</p><button type="button" className="primary-button" onClick={() => { close(); go({ type: 'all' }) }}>بریم خرید <ArrowLeft size={17} /></button></div>}
+  const hasIssues = unknown.length > 0 || quantity.length > 0
+  return <ModalShell close={close} className="cart-modal" label="سبد خرید">
+    <div className="drawer-heading"><div><h2>سبد خرید شما</h2><span>{fa(count)} کالا</span></div><div className="cart-heading-actions">{count > 0 && <button type="button" className="cart-clear" onClick={clearCart}>پاک کردن سبد</button>}<button type="button" className="modal-close" onClick={close} aria-label="بستن"><X size={21} /></button></div></div>
+    {unknown.length > 0 && <div className="cart-warning" role="status"><span>{fa(unknown.length)} کالا در کاتالوگ فعلی پیدا نشد و در جمع نمونه حساب نشده است.</span><button type="button" onClick={() => unknown.forEach(removeItem)}>حذف کالاهای نامشخص</button></div>}
+    {cartItems.length ? <>
+      <div className="cart-items">{cartItems.map((item) => {
+        const issue = quantity.includes(item.id)
+        const limit = productQuantityLimit(item)
+        return <div className="cart-item" key={item.id}><img src={assetUrl(item.image)} alt="" /><div className="cart-item-info">
+          <h3><a href={viewUrl({ type: 'product', id: item.id })} onClick={(event) => followProductLink(event, item.id, (next) => { close(); go(next) })}>{item.title}</a></h3>
+          <p><ShieldCheck size={14} /> اطلاعات کالا نمونه است</p><strong>{fa(item.price)} <small>تومان</small></strong>
+          {issue && <p className="cart-item-warning">موجودی آزمایشی برای این تعداد کافی نیست؛ تعداد را کاهش بده یا کالا را حذف کن.</p>}
+          <div className="cart-item-controls"><div className="quantity-control"><button type="button" aria-label={`افزایش تعداد ${item.title}`} disabled={cart[item.id] >= limit} onClick={() => changeQuantity(item.id, 1)}><Plus size={16} /></button><b>{fa(cart[item.id])}</b><button type="button" aria-label={`${cart[item.id] === 1 ? 'حذف' : 'کاهش تعداد'} ${item.title}`} onClick={() => changeQuantity(item.id, -1)}>{cart[item.id] === 1 ? <Trash2 size={15} /> : <Minus size={16} />}</button></div><button type="button" className="cart-remove-item" aria-label={`حذف کامل ${item.title} از سبد خرید`} onClick={() => removeItem(item.id)}><Trash2 size={15} /> حذف</button></div>
+        </div></div>
+      })}</div>
+      <div className="cart-summary"><div><span>جمع سبد خرید ({fa(count)} کالا)</span><b>{fa(total + saving)} تومان</b></div><div className="cart-saving"><span>سود شما از خرید</span><b>{fa(saving)} تومان</b></div><div className="cart-total"><span>جمع نمونه</span><b>{fa(total)} <small>تومان</small></b></div>{hasIssues && <p className="cart-summary-warning">پیش از ادامه، موارد مشخص‌شده در سبد را بررسی کن.</p>}<button type="button" className="primary-button" disabled={hasIssues} onClick={openCheckout}>{STATIC_DEMO ? 'بررسی وضعیت سفارش' : 'ادامه فرایند خرید'} <ArrowLeft size={18} /></button><p>{STATIC_DEMO ? 'ثبت سفارش در این نسخه فعال نیست.' : 'ادامه خرید صرفاً آزمایشی است؛ پرداخت و ارسال واقعی ندارد.'}</p></div>
+    </> : <div className="empty-cart"><span><ShoppingBag size={48} strokeWidth={1.3} /></span><h3>سبد خریدت هنوز خالیه!</h3><p>کلی کالای جذاب منتظرت هستن.</p><button type="button" className="primary-button" onClick={() => { close(); go({ type: 'all' }) }}>بریم خرید <ArrowLeft size={17} /></button></div>}
   </ModalShell>
 }
 
@@ -756,9 +780,11 @@ export default function App() {
   const [catalogProducts, setCatalogProducts] = useState(sampleProducts)
   const [catalogStatus, setCatalogStatus] = useState(STATIC_DEMO ? 'static' : 'loading')
   const [checkoutBusy, setCheckoutBusy] = useState(false)
-  const [cart, setCart] = useStoredState('digikaren-cart', {})
-  const [favorites, setFavorites] = useStoredState('digikaren-favorites', [])
-  const [city, setCity] = useStoredState('digikaren-city', 'تهران')
+  const [cart, setCart] = useStoredState('digikaren-cart', {}, cleanCart)
+  const [favorites, setFavorites] = useStoredState('digikaren-favorites', [], (value) => cleanProductIds(value, 200))
+  const [compareIds, setCompareIds] = useStoredState('digikaren-compare', [], cleanProductIds)
+  const [recent, setRecent] = useStoredState('digikaren-recent', [], (value) => cleanProductIds(value, MAX_RECENT))
+  const [city, setCity] = useStoredState('digikaren-city', 'تهران', (value) => typeof value === 'string' && value.trim() && value.length <= 60 ? value : 'تهران')
   const [modal, setModal] = useState(null)
   const [supportOpen, setSupportOpen] = useState(false)
   const [toast, setToast] = useState('')
@@ -792,8 +818,15 @@ export default function App() {
   useEffect(() => { refreshCatalog() }, [refreshCatalog])
   useEffect(() => {
     const product = view.type === 'product' ? catalogProducts.find((item) => item.id === view.id) : null
-    document.title = view.type === 'product' ? `${product?.title || (catalogStatus === 'loading' ? 'کالا' : 'کالا پیدا نشد')} | دیجی‌کارن` : 'دیجی‌کارن | خرید خوب، حال خوب'
+    document.title = view.type === 'product' ? `${product?.title || (catalogStatus === 'loading' ? 'کالا' : 'کالا پیدا نشد')} | دیجی‌کارن` : view.type === 'compare' ? 'مقایسه کالاها | دیجی‌کارن' : 'دیجی‌کارن | خرید خوب، حال خوب'
   }, [view.type, view.id, catalogProducts, catalogStatus])
+  useEffect(() => {
+    if (view.type !== 'product' || !catalogProducts.some((product) => product.id === view.id)) return
+    setRecent((current) => {
+      const next = recordViewed(current, view.id)
+      return next.length === current.length && next.every((id, index) => id === current[index]) ? current : next
+    })
+  }, [view.type, view.id, catalogProducts, setRecent])
   useEffect(() => {
     const onPop = () => setView(readView())
     window.addEventListener('popstate', onPop)
@@ -812,10 +845,11 @@ export default function App() {
     window.clearTimeout(toastTimer.current)
     toastTimer.current = window.setTimeout(() => setToast(''), 3200)
   }
-  const go = (next) => {
-    window.history.pushState({}, '', viewUrl(next, window.location.pathname))
-    setView(next)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  const go = (next, { scroll = true } = {}) => {
+    const path = viewUrl(next, window.location.pathname)
+    if (path !== `${window.location.pathname}${window.location.search}`) window.history.pushState({}, '', path)
+    setView(viewFromSearch(new URL(path, window.location.origin).search))
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   const limitFor = (id) => {
     const product = catalogProducts.find((item) => item.id === id)
@@ -840,6 +874,22 @@ export default function App() {
     setCart((current) => { const next = { ...current }; const quantity = (next[id] || 0) + delta; if (quantity <= 0) delete next[id]; else next[id] = Math.min(quantity, delta > 0 ? limit : quantity); return next })
   }
   const onFavorite = (id) => { const already = favorites.includes(id); setFavorites((current) => already ? current.filter((item) => item !== id) : [...current, id]); notify(already ? 'از علاقه‌مندی‌ها حذف شد' : 'به علاقه‌مندی‌هات اضافه شد') }
+  const removeCartItem = (id) => setCart((current) => { const next = { ...current }; delete next[id]; return next })
+  const clearCart = () => { setCart({}); notify('سبد خرید پاک شد') }
+  const validCompareIds = compareIds.filter((id) => catalogProducts.some((product) => product.id === id))
+  const onCompare = (id) => {
+    const result = toggleComparison(validCompareIds, id)
+    if (result.result === 'full') { notify(`حداکثر ${fa(MAX_COMPARE)} کالا را می‌توان مقایسه کرد.`); return }
+    if (result.result === 'invalid') return
+    setCompareIds(result.ids)
+    notify(result.result === 'added' ? 'به فهرست مقایسه اضافه شد' : 'از فهرست مقایسه حذف شد')
+  }
+  const removeCompare = (id) => {
+    setCompareIds((current) => current.filter((item) => item !== id))
+    go({ type: 'compare', ids: view.ids.filter((item) => item !== id) }, { scroll: false })
+  }
+  const addMoreCompare = (ids) => { if (ids.length) setCompareIds(ids); go({ type: 'all' }) }
+  const rememberProduct = (id) => setRecent((current) => recordViewed(current, id))
   const openModal = (type, data) => setModal({ type, data })
   const closeModal = () => { if (!checkoutBusy) setModal(null) }
   const installApp = async () => {
@@ -855,21 +905,22 @@ export default function App() {
     }
   }
   const onNotice = () => notify('این بخش در نسخه نمایشی فعال نیست.')
-  const common = { favorites, onFavorite, onAdd, onOpen: (product) => openModal('product', product), go }
+  const common = { favorites, onFavorite, onAdd, onOpen: (product) => { rememberProduct(product.id); openModal('product', product) }, go, recent, clearRecent: () => { setRecent([]); notify('تاریخچه بازدید پاک شد') } }
   const cartCount = Object.values(cart).reduce((sum, count) => sum + (Number(count) || 0), 0)
-  return <CatalogContext.Provider value={catalogProducts}>
+  return <CatalogContext.Provider value={catalogProducts}><CompareProvider value={{ ids: validCompareIds, toggle: onCompare }}>
     <Header view={view} go={go} cartCount={cartCount} favorites={favorites} city={city} openModal={openModal} onSupport={() => setSupportOpen(true)} />
     <AppNotice openInstall={() => openModal('install')} />
-    {view.type === 'home' ? <HomePage {...common} onNotice={onNotice} /> : view.type === 'categories' ? <CategoryDirectory go={go} /> : view.type === 'product' ? <ProductPage key={view.id} id={view.id} catalogStatus={catalogStatus} cart={cart} {...common} openImage={(product) => openModal('product-image', product)} openCart={() => openModal('cart')} notify={notify} /> : <Catalog key={`${view.type}-${view.id || view.query || ''}-${view.sub || ''}`} view={view} {...common} />}
+    {view.type === 'home' ? <HomePage {...common} onNotice={onNotice} /> : view.type === 'categories' ? <CategoryDirectory go={go} /> : view.type === 'compare' ? <ComparePage ids={view.ids} products={catalogProducts} catalogStatus={catalogStatus} cart={cart} onAdd={onAdd} onRemove={removeCompare} onAddMore={addMoreCompare} go={go} notify={notify} /> : view.type === 'product' ? <ProductPage key={view.id} id={view.id} catalogStatus={catalogStatus} cart={cart} {...common} openImage={(product) => openModal('product-image', product)} openCart={() => openModal('cart')} notify={notify} /> : <Catalog key={`${view.type}-${view.id || view.query || ''}-${view.sub || ''}`} view={view} catalogStatus={catalogStatus} {...common} />}
     <Footer go={go} onNotice={onNotice} notify={notify} />
     <Support open={supportOpen} setOpen={setSupportOpen} />
+    <CompareDock ids={validCompareIds} products={catalogProducts} go={go} clear={() => { setCompareIds([]); notify('فهرست مقایسه پاک شد') }} active={view.type === 'compare'} />
     {toast && <div className="toast" role="status"><CheckCircle2 size={19} />{toast}</div>}
     {modal?.type === 'product' && <ProductModal product={catalogProducts.find((product) => product.id === modal.data.id) || modal.data} close={closeModal} onAdd={onAdd} isFavorite={favorites.includes(modal.data.id)} onFavorite={onFavorite} openCart={() => openModal('cart')} go={go} />}
     {modal?.type === 'product-image' && <ProductImageModal product={modal.data} close={closeModal} />}
-    {modal?.type === 'cart' && <CartModal cart={cart} close={closeModal} changeQuantity={changeQuantity} go={go} openCheckout={() => openModal('checkout')} />}
+    {modal?.type === 'cart' && <CartModal cart={cart} close={closeModal} changeQuantity={changeQuantity} removeItem={removeCartItem} clearCart={clearCart} go={go} openCheckout={() => openModal('checkout')} />}
     {modal?.type === 'checkout' && (STATIC_DEMO ? <StaticCheckoutModal close={closeModal} backToCart={() => openModal('cart')} /> : <CheckoutModal cart={cart} city={city} close={closeModal} backToCart={() => openModal('cart')} busy={checkoutBusy} setBusy={setCheckoutBusy} catalogStatus={catalogStatus} refreshCatalog={refreshCatalog} onSuccess={() => setCart({})} />)}
     {modal?.type === 'login' && (STATIC_DEMO ? <StaticLoginModal close={closeModal} /> : <LoginModal close={closeModal} home={() => go({ type: 'home' })} />)}
     {modal?.type === 'install' && <InstallModal close={closeModal} installPrompt={installPrompt} install={installApp} installed={appInstalled} />}
     {modal?.type === 'location' && <LocationModal close={closeModal} city={city} setCity={setCity} />}
-  </CatalogContext.Provider>
+  </CompareProvider></CatalogContext.Provider>
 }
