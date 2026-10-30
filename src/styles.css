@@ -958,3 +958,21 @@ a:focus-visible { outline: 3px solid #72b8c1; outline-offset: 3px; }
 
 .cart-item-info h3 a { color: inherit; text-decoration: none; }
 .cart-item-info h3 a:hover { color: var(--primary); }
+
+/* Installable web-app notice and clear static-host limitations. */
+.app-notice { background: #edf5ff; border-bottom: 1px solid #dceafb; }
+.app-notice-inner { min-height: 43px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 6px; padding-bottom: 6px; }
+.app-notice-inner > div { display: flex; align-items: center; gap: 8px; min-width: 0; color: #345d8e; font-size: 10px; line-height: 1.8; }
+.app-notice-inner > div svg { flex: 0 0 auto; color: #357ce6; }
+.app-notice-inner > button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #c9e0ff; border-radius: 8px; background: #fff; color: #1765c9; font-size: 10px; font-weight: 800; }
+.app-notice-inner > button:hover { background: #f7fbff; border-color: #90bff7; }
+.availability-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 17px; border-radius: 15px; background: #edf5ff; color: #1e71e9; }
+.availability-modal h2, .install-modal h2 { color: #17365d; line-height: 1.7; }
+.availability-modal p, .install-modal p { margin: 8px 0 14px; color: #687e99; font-size: 11px; line-height: 2; }
+.availability-note { margin: 12px 0 18px; padding: 12px 14px; border: 1px solid #e0ecfb; border-radius: 10px; background: #f5f9ff; color: #486887; font-size: 10px; line-height: 2; }
+.availability-modal .primary-button, .install-modal .primary-button { width: 100%; justify-content: center; }
+@media (max-width: 700px) {
+  .app-notice-inner { gap: 8px; }
+  .app-notice-inner > div { font-size: 9px; line-height: 1.7; }
+  .app-notice-inner > button { padding: 7px 8px; font-size: 9px; }
+}

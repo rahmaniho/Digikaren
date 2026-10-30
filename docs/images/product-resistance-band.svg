@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="کش تمرینی">
+ <defs><linearGradient id="band" x2="1" y2="1"><stop stop-color="#6daafa"/><stop offset="1" stop-color="#185bb8"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="10"/></filter></defs>
+ <rect width="600" height="600" fill="#fff"/><ellipse cx="305" cy="450" rx="190" ry="24" fill="#788ca0" opacity=".17" filter="url(#shadow)"/>
+ <ellipse cx="300" cy="303" rx="182" ry="112" transform="rotate(-19 300 303)" fill="none" stroke="#c9d9eb" stroke-width="58"/>
+ <ellipse cx="300" cy="287" rx="182" ry="112" transform="rotate(-19 300 287)" fill="none" stroke="url(#band)" stroke-width="58"/>
+ <path d="M153 290c12-34 46-66 89-86" fill="none" stroke="#a2ceff" stroke-width="10" stroke-linecap="round" opacity=".65"/>
+ <ellipse cx="300" cy="287" rx="124" ry="59" transform="rotate(-19 300 287)" fill="#fff"/>
+</svg>

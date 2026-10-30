@@ -97,6 +97,36 @@ test('expanded seed adds products and updates cross-listing while preserving an 
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
+test('new departments preserve previous orders, notebook price and stock when taxonomy is upgraded', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'digikaren-new-departments-'))
+  const filename = join(dir, 'store.sqlite')
+  try {
+    const previous = createStore(filename)
+    const notebook = previous.getCatalog().find((item) => item.id === 'notebook')
+    previous.placeDemoOrder(makeBody(notebook, 2), key)
+    previous.close()
+
+    const legacy = new DatabaseSync(filename)
+    legacy.prepare(`UPDATE catalog SET data_json = json_set(data_json, '$.price', 12345678, '$.categories', json('["books"]'), '$.subcategories', json('{"books":["notebooks"]}')) WHERE id = ?`).run('notebook')
+    legacy.prepare('DELETE FROM catalog WHERE id IN (?, ?)').run('bed-bath-kit', 'cleaning-kit')
+    legacy.close()
+
+    const upgraded = createStore(filename)
+    try {
+      const catalog = upgraded.getCatalog()
+      const updated = catalog.find((item) => item.id === 'notebook')
+      assert.equal(updated.stock, 18)
+      assert.equal(updated.price, 12345678)
+      assert.deepEqual(updated.categories, ['books', 'office'])
+      assert.deepEqual(updated.subcategories.office, ['stationery'])
+      assert.equal(upgraded.listDemoOrders().length, 1)
+      assert.equal(catalog.find((item) => item.id === 'bed-bath-kit').stock, 20)
+      assert.equal(catalog.find((item) => item.id === 'cleaning-kit').stock, 20)
+      assert.equal(catalog.length, seedProducts.length)
+    } finally { upgraded.close() }
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
 test('server rejects manipulated price, invalid quantities and stale inventory without partial changes', () => {
   const store = createStore()
   try {

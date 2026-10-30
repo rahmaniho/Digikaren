@@ -75,6 +75,18 @@ test('expanded departments expose their intended products and cross-list the exi
     ['handmade', 'ceramics', 'ceramic-bowl'], ['handmade', 'textiles', 'woven-mat'],
     ['handmade', 'wood', 'wooden-spoon'], ['handmade', 'gifts', 'craft-home-set'],
     ['beauty', 'oral', 'toothbrush'], ['beauty', 'body', 'soap'],
+    ['bed-bath', 'bedding', 'cotton-duvet'], ['bed-bath', 'pillows', 'sleep-pillow'],
+    ['bed-bath', 'towels', 'bath-towel'], ['bed-bath', 'organizers', 'woven-storage-basket'],
+    ['bed-bath', 'accessories', 'night-light'],
+    ['lighting', 'desk', 'desk-lamp'], ['lighting', 'bulbs', 'led-bulb'],
+    ['lighting', 'night', 'night-light'], ['lighting', 'decorative', 'string-lights'],
+    ['office', 'stationery', 'notebook'], ['office', 'filing', 'document-folder'],
+    ['office', 'organization', 'pencil-holder'], ['office', 'tools', 'desk-stapler'],
+    ['office', 'workspace', 'workspace-kit'],
+    ['party', 'balloons', 'party-balloons'], ['party', 'tableware', 'paper-plates'],
+    ['party', 'decor', 'party-bunting'], ['party', 'giftwrap', 'ribbon-gift-box'],
+    ['cleaning', 'cleaners', 'dishsoap'], ['cleaning', 'cloths', 'microfiber-cloth'],
+    ['cleaning', 'tools', 'scrub-brush'], ['cleaning', 'gloves', 'cleaning-gloves'],
   ]
   for (const [category, subcategory, id] of expected) {
     const item = products.find((product) => product.id === id)
