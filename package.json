@@ -10,8 +10,7 @@
     "test": "node --test",
     "start": "node server/index.js",
     "orders": "node server/list-demo-orders.js",
-    "build:pages": "vite build --mode pages --base=/Digikaren/",
-    "pages:prepare": "npm run build:pages && node scripts/prepare-pages.js"
+    "build:pages": "vite build --mode pages --base=/Digikaren/"
   },
   "dependencies": {
     "@fontsource/vazirmatn": "^5.2.6",

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="کوله‌پشتی سفری">
- <defs><linearGradient id="body" x2="1" y2="1"><stop stop-color="#668fbd"/><stop offset="1" stop-color="#285078"/></linearGradient><linearGradient id="pocket" x2="1" y2="1"><stop stop-color="#88b1d5"/><stop offset="1" stop-color="#4e7aa6"/></linearGradient><filter id="shadow"><feGaussianBlur stdDeviation="12"/></filter></defs>
- <rect width="600" height="600" fill="#fff"/><ellipse cx="300" cy="517" rx="148" ry="19" fill="#8192a3" opacity=".18" filter="url(#shadow)"/>
- <path d="M218 202c-25-2-48 14-48 51v188c0 32 18 54 52 58l15-33V235z" fill="#264866"/><path d="M382 202c25-2 48 14 48 51v188c0 32-18 54-52 58l-15-33V235z" fill="#264866"/>
- <path d="M259 181v-27c0-25 15-39 41-39s41 14 41 39v27" fill="none" stroke="#3e658b" stroke-width="20" stroke-linecap="round"/>
- <rect x="196" y="166" width="208" height="336" rx="73" fill="url(#body)"/><path d="M204 281c0-58 42-108 96-108s96 50 96 108" fill="none" stroke="#a9c7e2" stroke-width="5" opacity=".75"/>
- <path d="M226 340c0-20 14-34 34-34h80c20 0 34 14 34 34v102c0 19-14 34-34 34h-80c-20 0-34-15-34-34z" fill="url(#pocket)"/><path d="M231 343h138" stroke="#dcebf6" stroke-width="4" opacity=".85"/><rect x="327" y="338" width="12" height="20" rx="4" fill="#ddebf5"/><rect x="281" y="220" width="38" height="11" rx="5" fill="#c9deee" opacity=".8"/>
-</svg>
