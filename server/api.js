@@ -1,8 +1,13 @@
 import express from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { OrderError } from './database.js'
 import { categories } from '../src/data.js'
+import { createAdminRouter } from './admin-api.js'
 
-export function createApiApp(store) {
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+export function createApiApp(store, { adminPassword = process.env.DIGIKAREN_ADMIN_PASSWORD || '', uploadsDir = process.env.DIGIKAREN_UPLOADS || path.join(root, 'var', 'uploads') } = {}) {
   const app = express()
   app.disable('x-powered-by')
   app.use((request, response, next) => {
@@ -10,10 +15,19 @@ export function createApiApp(store) {
     response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
     next()
   })
+  app.use('/uploads', express.static(uploadsDir, { dotfiles: 'deny', index: false, fallthrough: false, setHeaders: (response) => {
+    response.setHeader('X-Content-Type-Options', 'nosniff')
+    response.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+    response.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+  } }))
   app.use('/api', (request, response, next) => {
     response.setHeader('Cache-Control', 'no-store')
     next()
-  }, express.json({ limit: '16kb' }))
+  })
+  // Uploaded images are bounded separately; all other API payloads stay small.
+  app.use('/api/admin/uploads', express.json({ limit: '3mb' }))
+  app.use('/api', express.json({ limit: '16kb' }))
+  app.use('/api/admin', createAdminRouter(store, { password: adminPassword, uploadsDir }))
   app.get('/api/health', (request, response) => response.json({ ok: true, mode: 'demo' }))
   app.get('/api/catalog', (request, response) => response.json({ products: store.getCatalog(), mode: 'demo' }))
   app.get('/api/categories', (request, response) => {
